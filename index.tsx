@@ -53,7 +53,15 @@ import {
   KeyRound,
   ShieldX,
   RotateCcw,
-  Fingerprint
+  Fingerprint,
+  ZapOff,
+  Clock,
+  Phone,
+  UserCheck,
+  HardDrive,
+  Wifi,
+  PhoneCall,
+  Power
 } from 'lucide-react';
 
 // --- Types & Interfaces ---
@@ -88,6 +96,26 @@ const REASONS_NOT_VISITED = [
   "NO MOVEMENT, DUE TO PROTEST"
 ];
 
+const INCIDENT_TYPES = [
+  "NETWORK - FIBER CUT",
+  "NETWORK - ROUTER/SWITCH FAILURE",
+  "POWER - UPS/INVERTER FAULT",
+  "POWER - NATIONAL GRID DOWN",
+  "VOICE - IP PHONE UNREACHABLE",
+  "SYSTEMS - SERVER OFFLINE",
+  "SECURITY - UNAUTHORIZED ACCESS",
+  "OTHER TECHNICAL FAULT"
+];
+
+const REQUEST_TYPES = [
+  "SERVICE - BANDWIDTH UPGRADE",
+  "SERVICE - NEW NODE DEPLOYMENT",
+  "SERVICE - IP PHONE PROVISIONING",
+  "HARDWARE - SPARE PARTS REPLACEMENT",
+  "TECHNICAL - SITE SURVEY REQUEST",
+  "ADMIN - ESCALATION TO CSS"
+];
+
 interface Visitation {
   id: string;
   frfId: string;
@@ -96,12 +124,24 @@ interface Visitation {
   timestamp: number;
   mdaId: string;
   mdaName: string;
+  contactName: string;
+  contactPhone: string;
+  visitStartTime: string;
+  visitEndTime: string;
   wasVisited: 'Yes' | 'No';
   reasonNotVisited?: string;
+  checklist: {
+    internet: boolean;
+    power: boolean;
+    voice: boolean;
+    lan: boolean;
+  };
   hasIncident: 'Yes' | 'No';
+  incidentType?: string;
   incidentTicket?: string;
   incidentStatus?: 'YES RESOLVED' | 'NO PENDING' | 'PROCESSING';
   hasRequest: 'Yes' | 'No';
+  requestType?: string;
   requestTicket?: string;
   requestStatus?: 'YES GRANTED' | 'NO PENDING' | 'PROCESSING';
   comments: string;
@@ -111,7 +151,6 @@ interface Visitation {
 
 const LOGO_URL = "http://galaxybackbone.com.ng/wp-content/uploads/2020/12/Galaxy-New-Logo-scaled.jpg";
 
-// SYSTEM PROVISIONING: Official MDA Registry (57 Strategic Nodes)
 const INITIAL_MDAS: MDA[] = [
   { id: 'mda-01', name: 'FEDERAL MINISTRY OF TRANSPORTATION', category: 'Ministry', active: true },
   { id: 'mda-02', name: 'FEDERAL CAPITAL TERRITORY ADMINISTRATION', category: 'Agency', active: true },
@@ -172,7 +211,6 @@ const INITIAL_MDAS: MDA[] = [
   { id: 'mda-57', name: 'NIGERIAN LAW REFORM COMMISSION', category: 'Commission', active: true },
 ];
 
-// SYSTEM RESET: Initializing with specific personnel as requested
 const INITIAL_USERS: User[] = [
   { id: 'u1', name: 'Strategic Administrator', email: 'admin@gbb.com.ng', password: 'admin123', role: 'ADMIN', assignedMdaIds: [] },
   { id: 'u4', name: 'Head of CSS', email: 'css@gbb.com.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] },
@@ -277,7 +315,6 @@ export function FRFSystem() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // SYSTEM RESET: Initializing with the expanded official MDA dataset (v4 Synchronization)
   const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v4') || JSON.stringify(INITIAL_MDAS)));
   const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v4') || JSON.stringify(INITIAL_USERS)));
   const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v4') || "[]"));
@@ -292,11 +329,9 @@ export function FRFSystem() {
   const [mgmtUser, setMgmtUser] = useState<User | null>(null);
   const [mgmtMda, setMgmtMda] = useState<MDA | null>(null);
 
-  // Login form auto-fill states
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // MDA Assignment Filters State
   const [mdaAssignSearch, setMdaAssignSearch] = useState('');
   const [mdaAssignCategory, setMdaAssignCategory] = useState('ALL');
   const [mdaAssignStatus, setMdaAssignStatus] = useState('ALL');
@@ -309,18 +344,19 @@ export function FRFSystem() {
 
   const stats = useMemo(() => {
     const isFRF = user && user.role === 'FRF';
-    const dataSet = isFRF ? visitations.filter(v => v.frfId === user.id) : visitations;
-    const totalIncidents = dataSet.filter(v => v.hasIncident === 'Yes').length;
-    const resolvedIncidents = dataSet.filter(v => v.incidentStatus === 'YES RESOLVED').length;
+    const personalVisits = isFRF ? visitations.filter(v => v.frfId === user.id) : visitations;
+    const totalIncidents = personalVisits.filter(v => v.hasIncident === 'Yes').length;
+    const resolvedIncidents = personalVisits.filter(v => v.incidentStatus === 'YES RESOLVED').length;
+    const activeIncidents = personalVisits.filter(v => v.hasIncident === 'Yes' && v.incidentStatus !== 'YES RESOLVED').length;
     
-    // CALIBRATION: Ensure only FRF role is counted as respondent
     const frfPersonnel = users.filter(u => u.role === 'FRF');
     const activeFrfIds = new Set(visitations.map(v => v.frfId));
     const activeFrfsCount = Array.from(activeFrfIds).filter(id => users.find(u => u.id === id)?.role === 'FRF').length;
 
     return {
       totalMdas: isFRF ? user.assignedMdaIds.length : mdas.length,
-      totalVisits: dataSet.length,
+      totalVisits: personalVisits.length,
+      activeIncidents,
       incidents: { total: totalIncidents, resolved: resolvedIncidents, rate: totalIncidents > 0 ? Math.round((resolvedIncidents / totalIncidents) * 100) : 100 },
       totalFrfs: frfPersonnel.length,
       activeFrfs: activeFrfsCount,
@@ -337,7 +373,7 @@ export function FRFSystem() {
     if (found) { 
       setUser(found); 
       setAppState('APP'); 
-      if (found.role === 'HEAD_OF_CSS') setActiveTab('reports');
+      if (found.role === 'HEAD_OF_CSS' || found.role === 'ADMIN') setActiveTab('dashboard');
       else setActiveTab('dashboard'); 
     }
     else { alert("Tactical Error: Invalid Credentials or Unauthorized Access."); }
@@ -406,7 +442,14 @@ export function FRFSystem() {
   };
 
   const handleToggleMdaAssign = (userId: string, mdaId: string) => {
-    setUsers(users.map(u => u.id === userId ? { ...u, assignedMdaIds: u.assignedMdaIds.includes(mdaId) ? u.assignedMdaIds.filter(id => id !== mdaId) : [...u.assignedMdaIds, mdaId] } : u));
+    setUsers(prevUsers => prevUsers.map(u => 
+      u.id === userId ? { 
+        ...u, 
+        assignedMdaIds: u.assignedMdaIds.includes(mdaId) 
+          ? u.assignedMdaIds.filter(id => id !== mdaId) 
+          : [...u.assignedMdaIds, mdaId] 
+      } : u
+    ));
   };
 
   const filteredMdasForAssignment = useMemo(() => {
@@ -489,7 +532,6 @@ export function FRFSystem() {
                 <div className="flex gap-2">
                   <button onClick={() => { setMgmtUser(u); setIsUserEditorOpen(true); }} className="flex-1 py-3 bg-white/5 rounded-xl text-[9px] font-black uppercase text-slate-400 border border-white/5 hover:bg-white/10 transition-all">Edit</button>
                   {u.role === 'FRF' && <button onClick={() => { setMgmtUser(u); setIsAssignMdaOpen(true); }} className="flex-1 py-3 bg-emerald-600/10 text-emerald-500 rounded-xl text-[9px] font-black uppercase border border-emerald-500/10 hover:bg-emerald-600/20 transition-all">Hubs ({u.assignedMdaIds.length})</button>}
-                  {/* Fixed: Passing u.id directly as a string to handleDeleteUser */}
                   <button onClick={() => handleDeleteUser(u.id)} className="p-3 bg-rose-600/10 text-rose-500 rounded-xl border border-rose-500/10 hover:bg-rose-600 hover:text-white transition-all"><ShieldX className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -612,66 +654,8 @@ export function FRFSystem() {
       }, 1000);
     };
 
-    const handleExportMaster = () => {
-        setIsExporting(true);
-        setTimeout(() => {
-            try {
-                if (exportFormat === 'PDF') {
-                    window.print();
-                    setIsExporting(false);
-                    return;
-                }
-                const data = audit.rawData;
-                const activeFields = EXPORT_FIELDS.filter(f => selectedCols.includes(f.id));
-                const headers = activeFields.map(f => f.label);
-                const delimiter = exportFormat === 'XLSX' ? '\t' : ',';
-                const extension = exportFormat === 'XLSX' ? 'xls' : 'csv';
-                const mimeType = exportFormat === 'XLSX' ? 'application/vnd.ms-excel' : 'text/csv;charset=utf-8;';
-                let outputContent = "";
-                if (exportFormat === 'CSV') outputContent += "sep=,\n";
-                outputContent += headers.join(delimiter) + "\n";
-                data.forEach(v => {
-                    const row = activeFields.map(f => {
-                        let val = (v as any)[f.id] || "";
-                        if (f.id === 'comments' && !String(val).trim()) val = "N/A";
-                        let cleaned = String(val).replace(/\n/g, ' ').replace(/\r/g, '');
-                        if (exportFormat === 'CSV') return `"${cleaned.replace(/"/g, '""')}"`;
-                        return cleaned;
-                    });
-                    outputContent += row.join(delimiter) + "\n";
-                });
-                const BOM = '\uFEFF';
-                const blob = new Blob([BOM + outputContent], { type: mimeType });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.setAttribute("href", url);
-                link.setAttribute("download", `GBB_Master_Audit_${startDate}_to_${endDate}.${extension}`);
-                link.click();
-                URL.revokeObjectURL(url);
-            } catch (error) { alert("Export Failure."); } finally { setIsExporting(false); }
-        }, 1200);
-    };
-
-    const toggleColumn = (id: string) => {
-        setSelectedCols(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
-    };
-
     return (
         <div className="space-y-10 animate-in fade-in duration-700 pb-20 print:p-0">
-            {/* Dynamic Print Header */}
-            <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
-              <div className="flex justify-between items-end">
-                <img src={LOGO_URL} className="h-10 grayscale" />
-                <div className="text-right">
-                  <h1 className="text-xl font-black uppercase tracking-tight text-slate-900">
-                    {reportMode === 'WEEKLY' ? 'Strategic Weekly Intelligence Summary' : 'Master Tactical Audit Log'}
-                  </h1>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Generated: {new Date().toLocaleString()}</p>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Audit Window: {startDate} — {endDate}</p>
-                </div>
-              </div>
-            </div>
-
             <div className="bg-[#011a0e] p-8 md:p-12 rounded-[40px] border border-white/5 flex flex-col lg:flex-row justify-between items-center gap-8 shadow-3xl print:hidden relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/5 rounded-full blur-[80px] -mr-32 -mt-32" />
                 <div className="text-center lg:text-left relative z-10">
@@ -693,9 +677,6 @@ export function FRFSystem() {
                 <button onClick={() => setReportMode('MASTER')} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${reportMode === 'MASTER' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}>
                     <Database className="w-3.5 h-3.5" /> Master Audit
                 </button>
-                <button onClick={() => setReportMode('PERSONNEL')} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${reportMode === 'PERSONNEL' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}>
-                    <Users className="w-3.5 h-3.5" /> Personnel Rank
-                </button>
             </div>
 
             {reportMode === 'WEEKLY' ? (
@@ -708,7 +689,6 @@ export function FRFSystem() {
                         { label: "NODES VERIFIED (VISITED)", val: audit.visitedMdasCount, color: "text-emerald-400" },
                         { label: "NODES UNREACHABLE", val: audit.notVisitedMdasCount, color: "text-rose-400" },
                         { label: "Total Operational Responses", val: audit.totalResponses },
-                        { label: "Total Field Verification Gaps", val: audit.actualNotVisitedCount }
                       ].map(m => (
                         <div key={m.label} className="flex justify-between items-center py-3 border-b border-white/5">
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest print:text-slate-700">{m.label}</span>
@@ -729,236 +709,56 @@ export function FRFSystem() {
                           <span className={`text-xl font-black ${m.color || 'text-white'} print:text-slate-900`}>{m.val}</span>
                         </div>
                       ))}
-                      <div className="pt-4">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 print:text-slate-600">Synchronized Ticket Index</p>
-                        <div className="p-4 bg-black/40 rounded-xl border border-white/10 text-[11px] font-mono text-emerald-500 break-words leading-relaxed print:bg-slate-50 print:border-slate-200 print:text-slate-900">
-                          {audit.incidentTickets || "No incidents logged in window."}
-                        </div>
-                      </div>
                     </div>
                   </CommandCard>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <CommandCard title="Verification Gap Justification" icon={AlertTriangle}>
-                    <div className="space-y-3">
-                      {REASONS_NOT_VISITED.map(reason => (
-                        <div key={reason} className="flex justify-between items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 group hover:bg-emerald-600/10 transition-all print:bg-white print:border-slate-200">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight group-hover:text-white transition-all print:text-slate-800">{reason}</span>
-                          <span className="text-sm font-black text-white tabular-nums px-3 py-1 bg-white/5 rounded-lg border border-white/10 print:text-slate-900 print:border-slate-300">{audit.reasonCounts[reason]}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CommandCard>
-                  <div className="flex flex-col gap-8">
-                    <CommandCard title="Request & Feedback Intelligence" icon={ClipboardType}>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center py-3 border-b border-white/5">
-                          <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest print:text-blue-800">Requests Received</span>
-                          <span className="text-xl font-black text-white print:text-slate-900">{audit.requestsReceived}</span>
-                        </div>
-                        <div className="p-4 bg-black/40 rounded-xl border border-white/10 text-[11px] font-mono text-blue-400 break-words print:bg-slate-50 print:border-slate-200 print:text-slate-900">
-                          {audit.requestTickets || "No special requests logged."}
-                        </div>
-                      </div>
-                    </CommandCard>
-                    <div className="flex flex-col gap-3 print:hidden">
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] text-center">Intelligence Terminal</p>
-                      <div className="grid grid-cols-3 gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5">
-                        {['PDF', 'CSV', 'XLSX'].map(fmt => (
-                          <button key={fmt} onClick={() => setExportFormat(fmt as any)} className={`py-3 rounded-xl text-[10px] font-black uppercase transition-all ${exportFormat === fmt ? 'bg-emerald-600 text-white shadow-xl' : 'text-slate-500 hover:text-white'}`}>
-                            {fmt}
-                          </button>
-                        ))}
-                      </div>
-                      <button 
-                        onClick={handleExportWeekly}
-                        disabled={isExporting}
-                        className="w-full py-8 bg-emerald-600 text-white rounded-[32px] font-black uppercase text-xs tracking-[0.2em] shadow-3xl hover:bg-emerald-500 transition-all flex items-center justify-center gap-4 group disabled:opacity-50"
-                      >
-                        {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5 group-hover:translate-y-1 transition-transform" />}
-                        <span>{exportFormat === 'PDF' ? 'Print Strategy Deck' : `Download Weekly Summary (${exportFormat})`}</span>
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
-            ) : reportMode === 'MASTER' ? (
-                <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 print:grid-cols-4 print:gap-4">
-                        <div className="bg-white/[0.02] border border-white/5 p-8 rounded-3xl print:bg-white print:border-slate-300">
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Network Nodes</p>
-                            <p className="text-4xl font-black text-white tabular-nums print:text-slate-900">{audit.totalMdas}</p>
-                        </div>
-                        <div className="bg-emerald-500/5 border border-emerald-500/10 p-8 rounded-3xl print:bg-white print:border-emerald-500">
-                            <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-2">Success Metrics</p>
-                            <p className="text-4xl font-black text-white tabular-nums print:text-emerald-900">{audit.visitedMdasCount}</p>
-                        </div>
-                        <div className="bg-rose-500/5 border border-rose-500/10 p-8 rounded-3xl print:bg-white print:border-rose-500">
-                            <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-2">Active Alerts</p>
-                            <p className="text-4xl font-black text-white tabular-nums print:text-rose-900">{audit.incidentsReceived}</p>
-                        </div>
-                        <div className="bg-blue-500/5 border border-blue-500/10 p-8 rounded-3xl print:bg-white print:border-blue-500">
-                            <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Total Telemetry</p>
-                            <p className="text-4xl font-black text-white tabular-nums print:text-blue-900">{audit.rawData.length}</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-8 print:hidden">
-                        <CommandCard title="Master Telemetry Export" icon={FileDown} className="relative overflow-hidden">
-                            <div className="space-y-10">
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-4 border-b border-white/5 pb-4">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-500 border border-blue-500/20"><LayoutGrid className="w-5 h-5" /></div>
-                                        <p className="text-sm font-black text-white uppercase tracking-tight">1. Protocol Definition</p>
-                                    </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                        {EXPORT_FIELDS.map(f => (
-                                            <button key={f.id} onClick={() => toggleColumn(f.id)} className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all ${selectedCols.includes(f.id) ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'bg-white/5 border-transparent text-slate-500 hover:text-slate-300'}`}>
-                                                {selectedCols.includes(f.id) ? <CheckSquare className="w-4 h-4 text-blue-400" /> : <Square className="w-4 h-4" />}
-                                                <span className="text-[10px] font-black uppercase tracking-widest">{f.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="flex flex-col md:flex-row gap-8 items-stretch pt-2">
-                                    <div className="flex-1 space-y-4">
-                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">2. Export Key</p>
-                                        <div className="grid grid-cols-3 gap-3 p-1.5 bg-black/40 rounded-2xl border border-white/5">
-                                            {['PDF', 'CSV', 'XLSX'].map(fmt => (
-                                                <button key={fmt} onClick={() => setExportFormat(fmt as any)} className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 transition-all ${exportFormat === fmt ? 'bg-emerald-600 text-white shadow-xl' : 'bg-white/5 text-slate-500'}`}><span className="text-[9px] font-black uppercase">{fmt}</span></button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <button onClick={handleExportMaster} disabled={isExporting} className="flex-[1.5] py-8 bg-emerald-600 text-white rounded-[32px] font-black uppercase text-xs tracking-[0.25em] shadow-3xl hover:bg-emerald-500 transition-all flex items-center justify-center gap-5 disabled:opacity-50">
-                                        {isExporting ? <Loader2 className="w-6 h-6 animate-spin" /> : <Download className="w-6 h-6" />}
-                                        <span>Synchronize Strategic Logs</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </CommandCard>
-                    </div>
-
-                    {/* Visible Master List for Printing */}
-                    <div className="hidden print:block space-y-4">
-                      {audit.rawData.map(v => (
-                        <div key={v.id} className="p-4 border border-slate-200 rounded-lg bg-white">
-                          <div className="flex justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase text-slate-900">{v.mdaName}</span>
-                            <span className="text-[10px] text-slate-500">{v.date}</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-4 text-[9px] uppercase font-bold text-slate-700">
-                            <div>Visited: <span className={v.wasVisited === 'Yes' ? 'text-emerald-700' : 'text-rose-700'}>{v.wasVisited}</span></div>
-                            <div>Incident: <span className={v.hasIncident === 'Yes' ? 'text-rose-700' : 'text-emerald-700'}>{v.hasIncident}</span></div>
-                            <div>Respondent: {v.frfName}</div>
-                          </div>
-                          {v.comments && v.comments !== 'N/A' && (
-                            <div className="mt-2 text-[9px] text-slate-600 italic border-t border-slate-100 pt-1">
-                              Comment: {v.comments}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                </div>
-            ) : (
-                <div className="animate-in slide-in-from-bottom-4 duration-500">
-                    <CommandCard title="Personnel Tactical Rankings" subtitle={`Verification Window: ${startDate} to ${endDate}`} icon={FileStack}>
-                        <div className="space-y-2">
-                            {audit.personnelCounts.length === 0 && <p className="text-center py-10 text-slate-500 font-black text-[10px] uppercase tracking-widest">No Operational Personnel Found</p>}
-                            {audit.personnelCounts.map((row, idx) => (
-                                <div key={row.id} className="flex justify-between items-center p-6 rounded-3xl bg-white/[0.02] border border-white/5 group hover:bg-emerald-600/10 transition-all print:bg-white print:border-slate-200 print:p-4">
-                                    <div className="flex items-center gap-6">
-                                        <div className="w-10 h-10 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-[11px] font-black text-emerald-500 print:bg-slate-100 print:text-slate-900">{idx + 1}</div>
-                                        <span className="text-sm font-black text-white uppercase tracking-tight print:text-slate-900">{row.name}</span>
-                                    </div>
-                                    <Badge variant={row.count > 10 ? 'success' : 'info'} size="md" className="min-w-[50px] justify-center tabular-nums">{row.count}</Badge>
-                                </div>
-                            ))}
-                        </div>
-                    </CommandCard>
-                </div>
-            )}
+            ) : null}
         </div>
     );
   };
 
   const HistoryView = () => {
     const [q, setQ] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [statusFilter, setStatusFilter] = useState('ALL');
-
-    const clearFilters = () => {
-      setQ('');
-      setStartDate('');
-      setEndDate('');
-      setStatusFilter('ALL');
-    };
-
     const baseData = user?.role === 'FRF' ? visitations.filter(v => v.frfId === user?.id) : visitations;
     const filteredData = useMemo(() => {
-        return baseData.filter(v => {
-            const matchesName = v.mdaName.toLowerCase().includes(q.toLowerCase());
-            const matchesStart = startDate ? v.date >= startDate : true;
-            const matchesEnd = endDate ? v.date <= endDate : true;
-            const matchesStatus = statusFilter === 'ALL' || 
-                (statusFilter === 'YES RESOLVED' && v.incidentStatus === 'YES RESOLVED') ||
-                (statusFilter === 'NO PENDING' && v.incidentStatus === 'NO PENDING') ||
-                (statusFilter === 'PROCESSING' && v.incidentStatus === 'PROCESSING') ||
-                (statusFilter === 'NO INCIDENT' && v.hasIncident === 'No');
-            return matchesName && matchesStart && matchesEnd && matchesStatus;
-        }).reverse();
-    }, [baseData, q, startDate, endDate, statusFilter]);
-
-    const isFiltered = q || startDate || endDate || statusFilter !== 'ALL';
+        return baseData.filter(v => v.mdaName.toLowerCase().includes(q.toLowerCase())).reverse();
+    }, [baseData, q]);
 
     return (
       <div className="space-y-6 animate-in fade-in duration-700">
-        <div className="bg-[#011a0e] p-8 rounded-[40px] border border-white/5 space-y-8 shadow-3xl print:hidden">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
-            <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Strategic Vault</h2>
-              <p className="text-[10px] font-black text-slate-500 uppercase mt-1">Total Records: {filteredData.length}</p>
-            </div>
-            <div className="relative w-full sm:w-[400px]">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input value={q} onChange={e => setQ(e.target.value)} placeholder="SEARCH NODES..." className="w-full pl-14 pr-6 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-[11px] uppercase outline-none focus:ring-1 focus:ring-emerald-500" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6 border-t border-white/5">
-            <div className="space-y-3">
-              <p className="text-[9px] font-black text-slate-500 uppercase flex items-center gap-2"><CalendarRange className="w-3 h-3 text-emerald-500" /> Deployment Window</p>
-              <DateRangePicker start={startDate} end={endDate} onStartChange={setStartDate} onEndChange={setEndDate} labelStart="Min" labelEnd="Max" />
-            </div>
-            <div className="space-y-3 flex items-end gap-3">
-              <div className="flex-1">
-                <p className="text-[9px] font-black text-slate-500 uppercase flex items-center gap-2 mb-3"><Filter className="w-3 h-3 text-blue-500" /> Sector Filter</p>
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-[10px] font-black text-white uppercase outline-none appearance-none"><option value="ALL">ALL LOGS</option><option value="YES RESOLVED">RESOLVED</option><option value="NO PENDING">PENDING</option><option value="PROCESSING">PROCESSING</option><option value="NO INCIDENT">SECURE</option></select>
-              </div>
-              {isFiltered && (
-                <button 
-                  onClick={clearFilters} 
-                  className="px-6 py-[18px] bg-rose-600/10 text-rose-500 rounded-2xl border border-rose-500/10 hover:bg-rose-600 hover:text-white transition-all shrink-0 flex items-center gap-2 group h-fit"
-                  title="Clear All Filters"
-                >
-                  <RotateCcw className="w-4 h-4 group-hover:-rotate-180 transition-transform duration-500" />
-                  <span className="text-[10px] font-black uppercase whitespace-nowrap">Clear All</span>
-                </button>
-              )}
-            </div>
-          </div>
+        <div className="flex justify-between items-center bg-[#011a0e] p-8 rounded-[40px] border border-white/5">
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Tactical Vault</h2>
+            <div className="relative w-[300px]"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search Archive..." className="w-full pl-12 pr-6 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-[11px] uppercase outline-none" /></div>
         </div>
-        <div className="space-y-4 max-h-[1000px] overflow-y-auto custom-scrollbar pr-2">
-          {filteredData.length === 0 && <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[40px]"><p className="text-slate-500 font-black text-xs uppercase tracking-[0.3em]">No Historical Data Captured</p></div>}
+        <div className="space-y-4">
           {filteredData.map(v => (
-            <div key={v.id} className="bg-[#011a0e] p-6 rounded-[28px] border border-white/5 flex justify-between items-center group shadow-lg hover:border-emerald-500/20 transition-all print:bg-white print:border-slate-200">
-              <div className="flex items-center gap-6">
-                <div className="text-center bg-white/5 p-4 rounded-xl min-w-[80px] border border-white/5 print:bg-slate-50 print:border-slate-300"><p className="text-3xl font-black text-white print:text-slate-900">{new Date(v.date).getDate()}</p><p className="text-[9px] font-black text-slate-500 uppercase print:text-slate-600">{new Date(v.date).toLocaleString('default', { month: 'short' })}</p></div>
-                <div><h4 className="text-lg font-black text-white uppercase tracking-tight print:text-slate-900">{v.mdaName}</h4><p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest print:text-emerald-800">{v.frfName}</p></div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col items-end gap-2"><Badge variant={v.hasIncident === 'Yes' ? 'error' : 'success'} size="sm">{v.hasIncident === 'Yes' ? 'Alert' : 'Secure'}</Badge>{v.incidentStatus && <Badge variant="info" size="sm" className="opacity-70">{v.incidentStatus}</Badge>}</div>
-                {(user?.role === 'ADMIN' || (user?.role === 'FRF' && v.frfId === user.id)) && (<button onClick={() => { setActiveEditRecord(v); setIsEditTicketModalOpen(true); }} className="p-4 bg-white/5 hover:bg-emerald-600 text-blue-400 hover:text-white rounded-2xl border border-white/5 shadow-xl transition-all print:hidden"><FileEdit className="w-5 h-5" /></button>)}
-              </div>
+            <div key={v.id} className="bg-[#011a0e] p-8 rounded-[32px] border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group hover:border-emerald-500/20 transition-all">
+                <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center">
+                        <span className="text-xl font-black text-white">{new Date(v.date).getDate()}</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase">{new Date(v.date).toLocaleString('default', { month: 'short' })}</span>
+                    </div>
+                    <div>
+                        <h4 className="text-lg font-black text-white uppercase truncate">{v.mdaName}</h4>
+                        <div className="flex items-center gap-3 mt-1">
+                            <span className="text-[9px] text-emerald-500 font-black uppercase tracking-widest">{v.frfName}</span>
+                            <div className="w-1 h-1 rounded-full bg-slate-700" />
+                            <span className="text-[9px] text-slate-500 font-bold uppercase">{v.visitStartTime} - {v.visitEndTime}</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex gap-4 items-center">
+                    <div className="flex gap-1">
+                        {v.checklist?.internet ? <Wifi className="w-3.5 h-3.5 text-emerald-500" /> : <Wifi className="w-3.5 h-3.5 text-rose-500/50" />}
+                        {v.checklist?.power ? <Power className="w-3.5 h-3.5 text-emerald-500" /> : <Power className="w-3.5 h-3.5 text-rose-500/50" />}
+                        {v.checklist?.voice ? <PhoneCall className="w-3.5 h-3.5 text-emerald-500" /> : <PhoneCall className="w-3.5 h-3.5 text-rose-500/50" />}
+                    </div>
+                    <Badge variant={v.hasIncident === 'Yes' ? 'error' : 'success'} size="sm">{v.hasIncident === 'Yes' ? 'Alert' : 'Secure'}</Badge>
+                    {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
+                      <button onClick={() => { setActiveEditRecord(v); setIsEditTicketModalOpen(true); }} className="p-3 bg-white/5 hover:bg-emerald-600 rounded-xl transition-all text-slate-400 hover:text-white"><FileEdit className="w-4 h-4" /></button>
+                    )}
+                </div>
             </div>
           ))}
         </div>
@@ -967,20 +767,21 @@ export function FRFSystem() {
   };
 
   const SubmitReportForm = () => {
+    const [step, setStep] = useState(1);
     const [q3, setQ3] = useState<'Yes' | 'No'>('Yes');
-    const [reasonNotVisited, setReasonNotVisited] = useState<string>('');
     const [q5, setQ5] = useState<'Yes' | 'No'>('No');
-    const [qHasRequest, setQHasRequest] = useState<'Yes' | 'No'>('No');
-    const myMdas = mdas.filter(m => user?.assignedMdaIds.includes(m.id) && m.active);
+    const [q6, setQ6] = useState<'Yes' | 'No'>('No');
+    const [checklist, setChecklist] = useState({ internet: true, power: true, voice: true, lan: true });
     
+    const myMdas = mdas.filter(m => user?.assignedMdaIds.includes(m.id) && m.active);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget as HTMLFormElement);
         const mdaId = fd.get('mdaId') as string;
         const mda = mdas.find(m => m.id === mdaId);
-        const commentInput = (fd.get('comments') as string) || "";
         
-        setVisitations([...visitations, {
+        const newVisitation: Visitation = {
             id: generateId(), 
             frfId: user!.id, 
             frfName: user!.name, 
@@ -988,34 +789,115 @@ export function FRFSystem() {
             timestamp: Date.now(), 
             mdaId, 
             mdaName: mda?.name || '',
+            contactName: fd.get('contactName') as string,
+            contactPhone: fd.get('contactPhone') as string,
+            visitStartTime: fd.get('startTime') as string,
+            visitEndTime: fd.get('endTime') as string,
             wasVisited: q3, 
-            reasonNotVisited: q3 === 'No' ? reasonNotVisited : undefined, 
+            reasonNotVisited: q3 === 'No' ? fd.get('reasonNotVisited') as string : undefined, 
+            checklist,
             hasIncident: q5, 
-            hasRequest: qHasRequest, 
-            comments: commentInput.trim() ? commentInput : "N/A"
-        } as Visitation]);
+            incidentType: q5 === 'Yes' ? fd.get('incidentType') as string : undefined,
+            incidentTicket: q5 === 'Yes' ? fd.get('incidentTicket') as string : undefined,
+            incidentStatus: q5 === 'Yes' ? 'NO PENDING' : undefined,
+            hasRequest: q6, 
+            requestType: q6 === 'Yes' ? fd.get('requestType') as string : undefined,
+            requestTicket: q6 === 'Yes' ? fd.get('requestTicket') as string : undefined,
+            requestStatus: q6 === 'Yes' ? 'NO PENDING' : undefined,
+            comments: (fd.get('comments') as string) || "N/A"
+        };
+        
+        setVisitations([...visitations, newVisitation]);
         setActiveTab('history');
     };
 
     return (
-        <div className="max-w-4xl mx-auto pb-20">
-            {myMdas.length === 0 ? (
-                <div className="bg-rose-500/10 p-12 rounded-[40px] border border-rose-500/20 text-center space-y-4">
-                  <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto" />
-                  <p className="text-rose-500 font-black uppercase text-xs tracking-widest">No Tactical Hubs Assigned</p>
-                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">Contact your supervisor to map authorized MDA nodes to your profile.</p>
+        <div className="max-w-5xl mx-auto pb-20 space-y-8 animate-in slide-in-from-bottom-6 duration-500">
+            <div className="flex items-center justify-between bg-[#011a0e] p-8 rounded-[40px] border border-white/5">
+                <div>
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Strategic Intelligence Broadcast</h2>
+                    <p className="text-[10px] font-black text-slate-500 uppercase mt-1">Capture critical site metrics</p>
                 </div>
-            ) : (
-                <CommandCard title="Intelligence Broadcast" icon={ClipboardCheck}>
-                    <form onSubmit={handleSubmit} className="space-y-10">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8"><input name="date" type="date" required defaultValue={getTodayString()} className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-black text-white text-xs" /><select name="mdaId" required className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">SELECT HUB...</option>{myMdas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-                        <div className="space-y-6"><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4"><label className="text-[10px] font-black text-white uppercase">3. Was Hub Site Visited?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ3(o as any)} className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${q3 === o ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div>{q3 === 'No' && (<div className="p-6 bg-rose-600/5 border border-rose-500/20 rounded-2xl space-y-4 animate-in fade-in zoom-in-95 duration-300"><label className="text-[10px] font-black text-rose-400 uppercase">Reason for Non-Visitation</label><select value={reasonNotVisited} onChange={e => setReasonNotVisited(e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">SELECT REASON...</option>{REASONS_NOT_VISITED.map(r => <option key={r} value={r}>{r}</option>)}</select></div>)}</div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8"><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col gap-4"><label className="text-[10px] font-black text-white uppercase">5. Violation (Incident) Detected?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ5(o as any)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${q5 === o ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col gap-4"><label className="text-[10px] font-black text-white uppercase">Customer Request / Feedback?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQHasRequest(o as any)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${qHasRequest === o ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div></div>
-                        <textarea name="comments" rows={4} className="w-full p-6 bg-white/5 border border-white/10 rounded-2xl font-bold text-white text-sm outline-none focus:border-emerald-500" placeholder="Provide tactical findings and site observations..." />
-                        <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500 transition-all">Broadcast Intelligence</button>
-                    </form>
-                </CommandCard>
-            )}
+                <div className="flex gap-2">
+                    {[1, 2, 3].map(s => (
+                        <div key={s} className={`w-10 h-1.5 rounded-full transition-all ${step >= s ? 'bg-emerald-500' : 'bg-white/10'}`} />
+                    ))}
+                </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+                {step === 1 && (
+                    <CommandCard title="Sector 1: Site Metadata & Personnel" icon={UserCheck}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-4"><label className="text-[9px] font-black text-slate-500 uppercase">1. Authorized Hub Node</label><select name="mdaId" required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs"><option value="">Select MDA...</option>{myMdas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+                            <div className="space-y-4"><label className="text-[9px] font-black text-slate-500 uppercase">2. Reporting Window</label><input name="date" type="date" required defaultValue={getTodayString()} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs" /></div>
+                            <div className="space-y-4">
+                                <label className="text-[9px] font-black text-slate-500 uppercase">3. Site Contact Personnel Met</label>
+                                <div className="flex gap-4">
+                                    <div className="flex-1 relative"><UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input name="contactName" placeholder="Full Name" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input name="contactPhone" placeholder="Official Phone" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <label className="text-[9px] font-black text-slate-500 uppercase">4. Operational Duration</label>
+                                <div className="flex gap-4">
+                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input name="startTime" type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input name="endTime" type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" onClick={() => setStep(2)} className="mt-12 w-full py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-xs tracking-widest hover:bg-emerald-500 transition-all shadow-3xl">Proceed to Sector 2</button>
+                    </CommandCard>
+                )}
+                {step === 2 && (
+                    <CommandCard title="Sector 2: Technical Audit & Logistics" icon={Activity}>
+                        <div className="space-y-12">
+                            <div className="p-8 bg-black/40 border border-white/10 rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-6">
+                                <div className="min-w-0 flex-1"><h4 className="text-sm font-black text-white uppercase tracking-tight">Was Hub Visited?</h4><p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Verification required</p></div>
+                                <div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ3(o as any)} className={`px-10 py-4 rounded-2xl font-black text-[10px] uppercase border transition-all ${q3 === o ? 'bg-emerald-600 border-emerald-500 text-white shadow-xl' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div>
+                            </div>
+                            {q3 === 'No' ? (
+                                <div className="p-8 bg-rose-600/5 border border-rose-500/20 rounded-[32px] space-y-4 animate-in zoom-in-95"><label className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Reason for Absence</label><select name="reasonNotVisited" required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs"><option value="">Select official reason...</option>{REASONS_NOT_VISITED.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="p-8 bg-emerald-600/5 border border-emerald-500/10 rounded-[32px] space-y-6">
+                                        <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-b border-emerald-500/10 pb-4">Checklist</h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {[
+                                                { id: 'internet', icon: Wifi, label: 'Internet OK' },
+                                                { id: 'power', icon: Power, label: 'Power OK' },
+                                                { id: 'voice', icon: PhoneCall, label: 'Voice OK' },
+                                                { id: 'lan', icon: HardDrive, label: 'LAN OK' }
+                                            ].map(item => (
+                                                <div key={item.id} onClick={() => setChecklist(prev => ({ ...prev, [item.id]: !prev[item.id as keyof typeof prev] }))} className={`p-5 rounded-2xl border cursor-pointer transition-all flex flex-col items-center gap-2 ${checklist[item.id as keyof typeof checklist] ? 'bg-emerald-600/10 border-emerald-500/50 text-white' : 'bg-white/5 border-transparent text-slate-700'}`}><item.icon className="w-5 h-5" /><span className="text-[8px] font-black uppercase">{item.label}</span></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="p-8 bg-blue-600/5 border border-blue-500/10 rounded-[32px] space-y-6"><h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-500/10 pb-4">Observations</h4><textarea name="comments" rows={5} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white outline-none focus:border-blue-500" placeholder="Describe site conditions..." /></div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-4 mt-12"><button type="button" onClick={() => setStep(1)} className="flex-1 py-6 bg-white/5 text-slate-500 rounded-[24px] font-black uppercase text-xs tracking-widest">Previous</button><button type="button" onClick={() => setStep(3)} className="flex-[2] py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-xs tracking-widest shadow-3xl">Next Sector</button></div>
+                    </CommandCard>
+                )}
+                {step === 3 && (
+                    <CommandCard title="Sector 3: Escalations" icon={ShieldAlert}>
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="p-8 bg-rose-600/5 border border-rose-500/10 rounded-[32px] space-y-8">
+                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Incident?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ5(o as any)} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${q5 === o ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-600'}`}>{o}</button>))}</div></div>
+                                    {q5 === 'Yes' && (<div className="space-y-6 animate-in fade-in"><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Nature</label><select name="incidentType" required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">Select...</option>{INCIDENT_TYPES.map(i => <option key={i} value={i}>{i}</option>)}</select></div><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Ticket</label><input name="incidentTicket" placeholder="INCT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" /></div></div>)}
+                                </div>
+                                <div className="p-8 bg-blue-600/5 border border-blue-500/10 rounded-[32px] space-y-8">
+                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Request?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ6(o as any)} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${q6 === o ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-slate-600'}`}>{o}</button>))}</div></div>
+                                    {q6 === 'Yes' && (<div className="space-y-6 animate-in fade-in"><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Type</label><select name="requestType" required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">Select...</option>{REQUEST_TYPES.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Ticket</label><input name="requestTicket" placeholder="REQT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" /></div></div>)}
+                                </div>
+                            </div>
+                            <div className="pt-8"><button type="submit" className="w-full py-8 bg-emerald-600 text-white rounded-[32px] font-black uppercase text-sm tracking-[0.3em] shadow-3xl">Broadcast Intelligence</button></div>
+                        </div>
+                    </CommandCard>
+                )}
+            </form>
         </div>
     );
   };
@@ -1027,7 +909,7 @@ export function FRFSystem() {
         <div className="p-8"><img src={LOGO_URL} className="w-full brightness-200 grayscale h-12 object-contain" /></div>
         <nav className="flex-1 px-6 space-y-3 overflow-y-auto custom-scrollbar">
           <NavItem icon={LayoutDashboard} label="Mission Control" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} />
-          {user?.role === 'ADMIN' && (
+          {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
             <>
               <div className="h-px bg-white/5 mx-4 my-2" />
               <NavItem icon={Building2} label="Node Matrix" active={activeTab === 'mdas'} onClick={() => {setActiveTab('mdas'); setIsSidebarOpen(false);}} />
@@ -1039,7 +921,7 @@ export function FRFSystem() {
           {user?.role === 'FRF' && <NavItem icon={Plus} label="New Deployment" active={activeTab === 'submit'} onClick={() => {setActiveTab('submit'); setIsSidebarOpen(false);}} />}
           <NavItem icon={History} label="Strategic Archive" active={activeTab === 'history'} onClick={() => {setActiveTab('history'); setIsSidebarOpen(false);}} />
         </nav>
-        <div className="p-6 mt-auto"><button onClick={handleLogout} className="w-full py-4 bg-rose-600/10 text-rose-500 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 border border-rose-500/20 hover:bg-rose-600 hover:text-white transition-all"><LogOut className="w-4 h-4" /> Shutdown Session</button></div>
+        <div className="p-6 mt-auto"><button onClick={handleLogout} className="w-full py-4 bg-rose-600/10 text-rose-500 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 border border-rose-500/20 hover:bg-rose-600 transition-all"><LogOut className="w-4 h-4" /> Shutdown Session</button></div>
       </div>
     </>
   );
@@ -1048,34 +930,63 @@ export function FRFSystem() {
     <button onClick={onClick} className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${active ? 'bg-emerald-600 text-white shadow-xl' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}><Icon className="w-4.5 h-4.5" /> <span>{label}</span></button>
   );
 
-  const AdminDashboard = () => (
-    <div className="space-y-12 animate-in fade-in duration-700">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            <StatPanel label="Authorized Nodes" value={mdas.length} icon={Building2} color="bg-emerald-600" />
-            <StatPanel label="System Telemetry" value={stats.totalVisits} icon={History} color="bg-blue-600" />
-            <StatPanel label="Critical Alerts" value={stats.incidents.total} icon={AlertTriangle} color="bg-rose-600" />
-            <StatPanel label="Respondent Force" value={stats.totalFrfs} icon={Users} color="bg-amber-500" />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <CommandCard title="Strategic Command Shortcuts" icon={Settings2}>
-                <div className="grid grid-cols-2 gap-4">
-                    <button onClick={() => setActiveTab('mdas')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group"><Building2 className="w-8 h-8" /><span className="text-[10px] font-black uppercase">Nodes Matrix</span></button>
-                    <button onClick={() => setActiveTab('users')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group"><Users className="w-8 h-8" /><span className="text-[10px] font-black uppercase">Personnel Auth</span></button>
-                    <button onClick={() => setActiveTab('reports')} className="p-6 bg-amber-600/10 border border-amber-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-amber-600 hover:text-white transition-all group"><PieChart className="w-8 h-8" /><span className="text-[10px] font-black uppercase">Intelligence Hub</span></button>
-                    <button onClick={() => setActiveTab('history')} className="p-6 bg-rose-600/10 border border-rose-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-rose-600 hover:text-white transition-all group"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase">Tactical Vault</span></button>
-                </div>
-            </CommandCard>
-            <CommandCard title="Tactical Feed Summary" icon={ActivitySquare}>
-                <div className="space-y-3">
-                    {visitations.length === 0 && <p className="text-center py-10 text-slate-500 font-black text-[9px] uppercase tracking-widest">Awaiting First Deployment</p>}
-                    {visitations.slice(-5).reverse().map(v => (
-                        <div key={v.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-xl flex justify-between items-center"><div className="min-w-0"><p className="text-[10px] font-black text-white uppercase truncate">{v.mdaName}</p><p className="text-[8px] text-emerald-500 font-bold uppercase mt-0.5">{v.frfName}</p></div><Badge variant={v.hasIncident === 'Yes' ? 'error' : 'success'} size="sm">{v.hasIncident === 'Yes' ? 'Violation' : 'Secure'}</Badge></div>
-                    ))}
-                </div>
-            </CommandCard>
-        </div>
-    </div>
-  );
+  const MissionControlDashboard = () => {
+    const isFRF = user?.role === 'FRF';
+    const canManage = user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS';
+    const feedData = isFRF ? visitations.filter(v => v.frfId === user.id) : visitations;
+
+    return (
+      <div className="space-y-12 animate-in fade-in duration-700">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+              {canManage ? (
+                <>
+                  <StatPanel label="Authorized Nodes" value={mdas.length} icon={Building2} color="bg-emerald-600" />
+                  <StatPanel label="System Telemetry" value={stats.totalVisits} icon={History} color="bg-blue-600" />
+                  <StatPanel label="Critical Alerts" value={stats.incidents.total} icon={AlertTriangle} color="bg-rose-600" />
+                  <StatPanel label="Respondent Force" value={stats.totalFrfs} icon={Users} color="bg-amber-500" />
+                </>
+              ) : (
+                <>
+                  <StatPanel label="My Tactical Hubs" value={user?.assignedMdaIds.length || 0} icon={Building2} color="bg-emerald-600" />
+                  <StatPanel label="My Deployments" value={stats.totalVisits} icon={History} color="bg-blue-600" />
+                  <StatPanel label="Active Field Alerts" value={stats.activeIncidents} icon={AlertTriangle} color="bg-rose-600" />
+                  <StatPanel label="Success Rate" value={`${stats.incidents.rate}%`} icon={CheckCircle2} color="bg-amber-500" />
+                </>
+              )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <CommandCard title={canManage ? "Strategic Command Console" : "Respondent Command Console"} icon={Settings2}>
+                  <div className="grid grid-cols-2 gap-4">
+                      {canManage ? (
+                          <>
+                              <button onClick={() => setActiveTab('mdas')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Building2 className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Nodes Matrix</span></button>
+                              <button onClick={() => setActiveTab('users')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><Users className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Personnel Auth</span></button>
+                              <button onClick={() => setActiveTab('reports')} className="p-6 bg-amber-600/10 border border-amber-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-amber-600 hover:text-white transition-all group shadow-sm"><PieChart className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Intelligence Hub</span></button>
+                              <button onClick={() => setActiveTab('history')} className="p-6 bg-rose-600/10 border border-rose-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-rose-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Tactical Vault</span></button>
+                          </>
+                      ) : (
+                          <>
+                              <button onClick={() => setActiveTab('submit')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Plus className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Initiate Deployment</span></button>
+                              <button onClick={() => setActiveTab('history')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Review Archive</span></button>
+                          </>
+                      )}
+                  </div>
+              </CommandCard>
+              <CommandCard title={isFRF ? "My Recent Deployments" : "Tactical Feed Summary"} icon={ActivitySquare}>
+                  <div className="space-y-3">
+                      {feedData.slice(-5).reverse().map(v => (
+                          <div key={v.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-xl flex justify-between items-center transition-all hover:bg-white/5">
+                              <div className="min-w-0"><p className="text-[10px] font-black text-white uppercase truncate">{v.mdaName}</p><p className="text-[8px] text-emerald-500 font-bold uppercase mt-0.5">{isFRF ? new Date(v.date).toLocaleDateString() : v.frfName}</p></div>
+                              <Badge variant={v.hasIncident === 'Yes' ? 'error' : 'success'} size="sm">{v.hasIncident === 'Yes' ? 'Violation' : 'Secure'}</Badge>
+                          </div>
+                      ))}
+                  </div>
+              </CommandCard>
+          </div>
+      </div>
+    );
+  };
 
   if (appState === 'LANDING') return (
     <div className="min-h-screen bg-[#010a06] text-white flex flex-col items-center justify-center p-8 overflow-hidden relative">
@@ -1090,34 +1001,13 @@ export function FRFSystem() {
   
   if (appState === 'LOGIN') return (
     <div className="min-h-screen bg-[#010a06] flex items-center justify-center p-8 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[120px] -mr-64 -mt-64" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[120px] -ml-64 -mb-64" />
-      
       <div className="max-w-md w-full z-10 space-y-6 animate-in slide-in-from-bottom-12 duration-700">
         <div className="bg-[#011a0e] rounded-[60px] p-12 border border-white/10 text-center shadow-3xl">
-          <div className="w-16 h-16 bg-emerald-600/10 border border-emerald-500/20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <Fingerprint className="w-8 h-8 text-emerald-500" />
-          </div>
+          <div className="w-16 h-16 bg-emerald-600/10 border border-emerald-500/20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner"><Fingerprint className="w-8 h-8 text-emerald-500" /></div>
           <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Personnel Authentication</h2>
           <form onSubmit={e => { e.preventDefault(); handleLogin(loginEmail, loginPassword); }} className="space-y-4">
-            <input 
-              value={loginEmail}
-              onChange={e => setLoginEmail(e.target.value)}
-              name="email" 
-              type="email" 
-              placeholder="Official Email" 
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" 
-              required 
-            />
-            <input 
-              value={loginPassword}
-              onChange={e => setLoginPassword(e.target.value)}
-              name="password" 
-              type="password" 
-              placeholder="Password" 
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" 
-              required 
-            />
+            <input value={loginEmail} onChange={e => setLoginEmail(e.target.value)} name="email" type="email" placeholder="Official Email" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
+            <input value={loginPassword} onChange={e => setLoginPassword(e.target.value)} name="password" type="password" placeholder="Password" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
             <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Authorize Entry</button>
           </form>
         </div>
@@ -1134,41 +1024,55 @@ export function FRFSystem() {
           <div className="text-right"><p className="text-xl font-black text-white uppercase leading-tight">{user?.name}</p><p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest opacity-80">{user?.role === 'FRF' ? 'First Respondent' : user?.role}</p></div>
         </header>
         <div className="pb-24">
-          {activeTab === 'dashboard' && <AdminDashboard />}
-          {activeTab === 'mdas' && user?.role === 'ADMIN' && <MDARegistry />}
-          {activeTab === 'users' && user?.role === 'ADMIN' && <PersonnelRegistry />}
-          {activeTab === 'reports' && user?.role === 'ADMIN' && <ReportsView />}
-          {activeTab === 'submit' && user?.role === 'FRF' && <SubmitReportForm />}
+          {activeTab === 'dashboard' && <MissionControlDashboard />}
+          {activeTab === 'mdas' && <MDARegistry />}
+          {activeTab === 'users' && <PersonnelRegistry />}
+          {activeTab === 'reports' && <ReportsView />}
+          {activeTab === 'submit' && <SubmitReportForm />}
           {activeTab === 'history' && <HistoryView />}
         </div>
       </main>
 
-      {/* Modals & Editors */}
-      <Modal isOpen={isEditTicketModalOpen} onClose={() => setIsEditTicketModalOpen(false)} title="Intelligence Sync">
-          <form onSubmit={handleUpdateTickets} className="p-10 space-y-10">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-rose-500/5 p-6 rounded-3xl border border-rose-500/10 space-y-4">
-                    <p className="text-[10px] font-black text-rose-400 uppercase border-b border-rose-500/10 pb-4">Incident Log</p>
-                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Ticket ID</label><input name="incidentTicket" defaultValue={activeEditRecord?.incidentTicket} placeholder="INCT..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs" /></div>
-                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Status</label><select name="incidentStatus" defaultValue={activeEditRecord?.incidentStatus || 'NO PENDING'} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs uppercase"><option value="NO PENDING">NO PENDING</option><option value="YES RESOLVED">YES RESOLVED</option><option value="PROCESSING">PROCESSING</option></select></div>
-                </div>
-                <div className="bg-blue-500/5 p-6 rounded-3xl border border-blue-500/10 space-y-4">
-                    <p className="text-[10px] font-black text-blue-400 uppercase border-b border-blue-500/10 pb-4">Request Log</p>
-                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Ticket ID</label><input name="requestTicket" defaultValue={activeEditRecord?.requestTicket} placeholder="REQT..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs" /></div>
-                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Status</label><select name="requestStatus" defaultValue={activeEditRecord?.requestStatus || 'NO PENDING'} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs uppercase"><option value="NO PENDING">NO PENDING</option><option value="YES GRANTED">YES GRANTED</option><option value="PROCESSING">PROCESSING</option></select></div>
-                </div>
-              </div>
-              <button type="submit" className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl hover:bg-emerald-500">Finalize Synchronization</button>
-          </form>
+      {/* Management Modals */}
+      <Modal isOpen={isAssignMdaOpen} onClose={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} title={`Tactical Node Mapping: ${mgmtUser?.name}`}>
+          <div className="p-10 space-y-6">
+              {/* FIXED: Live lookup to prevent stale UI state */}
+              {(() => {
+                const liveUser = users.find(u => u.id === mgmtUser?.id);
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-black/40 rounded-3xl border border-white/5">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                        <input value={mdaAssignSearch} onChange={e => setMdaAssignSearch(e.target.value)} placeholder="Filter Nodes..." className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none focus:border-emerald-500/50" />
+                      </div>
+                      <select value={mdaAssignCategory} onChange={e => setMdaAssignCategory(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none appearance-none cursor-pointer"><option value="ALL">All Categories</option><option value="Ministry">Ministries</option><option value="Agency">Agencies</option></select>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                        {filteredMdasForAssignment.map(m => {
+                          const isAssigned = liveUser?.assignedMdaIds.includes(m.id);
+                          return (
+                            <div key={m.id} onClick={() => mgmtUser && handleToggleMdaAssign(mgmtUser.id, m.id)} className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between group ${isAssigned ? 'bg-emerald-600/20 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                              <div className="min-w-0 pr-4"><p className={`text-[10px] font-black uppercase truncate ${isAssigned ? 'text-emerald-400' : 'text-white'}`}>{m.name}</p><p className="text-[7px] text-slate-600 font-bold uppercase mt-0.5">{m.category} • {m.active ? 'Active' : 'Offline'}</p></div>
+                              {isAssigned ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <div className="w-5 h-5 rounded-full border border-white/10 group-hover:border-emerald-500 transition-colors" />}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </>
+                );
+              })()}
+              <button onClick={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Finalize Strategy Mapping</button>
+          </div>
       </Modal>
 
       <Modal isOpen={isUserEditorOpen} onClose={() => { setIsUserEditorOpen(false); setMgmtUser(null); }} title={mgmtUser ? "Update Access Profile" : "Provision New Access"}>
           <form onSubmit={handleSaveUser} className="p-10 space-y-8">
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Personnel Name</label><input name="name" defaultValue={mgmtUser?.name} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Secure Email</label><input name="email" type="email" defaultValue={mgmtUser?.email} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Password</label><input name="password" type="text" placeholder={mgmtUser ? "Enter new or leave for current" : "Define Password"} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Role</label><select name="role" defaultValue={mgmtUser?.role || 'FRF'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="FRF">FIRST RESPONDENT (FRF)</option><option value="ADMIN">SUPERVISOR (ADMIN)</option><option value="HEAD_OF_CSS">SECTOR HEAD (CSS)</option></select></div>
-              <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Provision Records</button>
+              <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Commit Identity Registry</button>
           </form>
       </Modal>
 
@@ -1176,72 +1080,29 @@ export function FRFSystem() {
           <form onSubmit={handleSaveMda} className="p-10 space-y-8">
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Formal Designation</label><input name="name" defaultValue={mgmtMda?.name} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs uppercase" /></div>
               <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Category</label><select name="category" defaultValue={mgmtMda?.category || 'Ministry'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="Ministry">Ministry</option><option value="Agency">Agency</option><option value="Corporation">Corporation</option><option value="Commission">Commission</option><option value="Board">Board</option></select></div>
-                  <div className="flex flex-col items-center justify-center p-5 bg-black/40 border border-white/10 rounded-2xl"><label className="text-[10px] font-black text-slate-500 uppercase mb-3">Sync Active</label><input type="checkbox" name="active" defaultChecked={mgmtMda?.active ?? true} className="w-6 h-6 accent-emerald-500" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Category</label><select name="category" defaultValue={mgmtMda?.category || 'Ministry'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="Ministry">Ministry</option><option value="Agency">Agency</option><option value="Corporation">Corporation</option><option value="Commission">Commission</option></select></div>
+                  <div className="flex flex-col items-center justify-center p-5 bg-black/40 border border-white/10 rounded-2xl"><label className="text-[10px] font-black text-slate-500 uppercase mb-3">Node Online</label><input type="checkbox" name="active" defaultChecked={mgmtMda?.active ?? true} className="w-6 h-6 accent-emerald-500" /></div>
               </div>
-              <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Verify Hub Provision</button>
+              <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Sync Node Registry</button>
           </form>
       </Modal>
 
-      <Modal isOpen={isAssignMdaOpen} onClose={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} title={`Tactical Node Mapping: ${mgmtUser?.name}`}>
-          <div className="p-10 space-y-6">
-              {/* Tactical Filtering Console */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-black/40 rounded-3xl border border-white/5">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                  <input 
-                    value={mdaAssignSearch} 
-                    onChange={e => setMdaAssignSearch(e.target.value)} 
-                    placeholder="Search Nodes..." 
-                    className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none focus:border-emerald-500/50" 
-                  />
+      <Modal isOpen={isEditTicketModalOpen} onClose={() => setIsEditTicketModalOpen(false)} title="Intelligence Sync">
+          <form onSubmit={handleUpdateTickets} className="p-10 space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-rose-500/5 p-6 rounded-3xl border border-rose-500/10 space-y-4">
+                    <p className="text-[10px] font-black text-rose-400 uppercase border-b border-rose-500/10 pb-4">Incident Log</p>
+                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Ticket ID</label><input name="incidentTicket" defaultValue={activeEditRecord?.incidentTicket} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs" /></div>
+                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Status</label><select name="incidentStatus" defaultValue={activeEditRecord?.incidentStatus || 'NO PENDING'} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs uppercase"><option value="NO PENDING">NO PENDING</option><option value="YES RESOLVED">YES RESOLVED</option><option value="PROCESSING">PROCESSING</option></select></div>
                 </div>
-                <select 
-                  value={mdaAssignCategory} 
-                  onChange={e => setMdaAssignCategory(e.target.value)} 
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none appearance-none cursor-pointer hover:bg-white/[0.08]"
-                >
-                  <option value="ALL">All Categories</option>
-                  <option value="Ministry">Ministries</option>
-                  <option value="Agency">Agencies</option>
-                  <option value="Commission">Commissions</option>
-                  <option value="Corporation">Corporations</option>
-                  <option value="Board">Boards</option>
-                </select>
-                <select 
-                  value={mdaAssignStatus} 
-                  onChange={e => setMdaAssignStatus(e.target.value)} 
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none appearance-none cursor-pointer hover:bg-white/[0.08]"
-                >
-                  <option value="ALL">All Status</option>
-                  <option value="ACTIVE">Active Only</option>
-                  <option value="OFFLINE">Offline Only</option>
-                </select>
+                <div className="bg-blue-500/5 p-6 rounded-3xl border border-blue-500/10 space-y-4">
+                    <p className="text-[10px] font-black text-blue-400 uppercase border-b border-blue-500/10 pb-4">Request Log</p>
+                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Ticket ID</label><input name="requestTicket" defaultValue={activeEditRecord?.requestTicket} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs" /></div>
+                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Status</label><select name="requestStatus" defaultValue={activeEditRecord?.requestStatus || 'NO PENDING'} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs uppercase"><option value="NO PENDING">NO PENDING</option><option value="YES GRANTED">YES GRANTED</option><option value="PROCESSING">PROCESSING</option></select></div>
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
-                  {filteredMdasForAssignment.length === 0 ? (
-                    <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-3xl">
-                      <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">No matching tactical nodes found</p>
-                    </div>
-                  ) : (
-                    filteredMdasForAssignment.map(m => (
-                      <div key={m.id} onClick={() => mgmtUser && handleToggleMdaAssign(mgmtUser.id, m.id)} className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${mgmtUser?.assignedMdaIds.includes(m.id) ? 'bg-emerald-600/20 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-                        <div className="min-w-0 pr-4">
-                          <p className={`text-[10px] font-black uppercase truncate ${mgmtUser?.assignedMdaIds.includes(m.id) ? 'text-emerald-400' : 'text-white'}`}>{m.name}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <p className="text-[8px] text-slate-600 font-bold uppercase">{m.category}</p>
-                            <div className="w-1 h-1 rounded-full bg-slate-800" />
-                            <p className={`text-[8px] font-bold uppercase ${m.active ? 'text-emerald-600/70' : 'text-rose-600/70'}`}>{m.active ? 'Active' : 'Offline'}</p>
-                          </div>
-                        </div>
-                        {mgmtUser?.assignedMdaIds.includes(m.id) ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Plus className="w-4 h-4 text-slate-700 shrink-0" />}
-                      </div>
-                    ))
-                  )}
-              </div>
-              <button onClick={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Finalize Strategy Mapping</button>
-          </div>
+              <button type="submit" className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl hover:bg-emerald-500">Finalize Synchronization</button>
+          </form>
       </Modal>
     </div>
   );
