@@ -52,7 +52,8 @@ import {
   ClipboardType,
   KeyRound,
   ShieldX,
-  RotateCcw
+  RotateCcw,
+  Fingerprint
 } from 'lucide-react';
 
 // --- Types & Interfaces ---
@@ -110,8 +111,66 @@ interface Visitation {
 
 const LOGO_URL = "http://galaxybackbone.com.ng/wp-content/uploads/2020/12/Galaxy-New-Logo-scaled.jpg";
 
-// SYSTEM RESET: Cleared MDAs for manual provisioning
-const INITIAL_MDAS: MDA[] = [];
+// SYSTEM PROVISIONING: Official MDA Registry (57 Strategic Nodes)
+const INITIAL_MDAS: MDA[] = [
+  { id: 'mda-01', name: 'FEDERAL MINISTRY OF TRANSPORTATION', category: 'Ministry', active: true },
+  { id: 'mda-02', name: 'FEDERAL CAPITAL TERRITORY ADMINISTRATION', category: 'Agency', active: true },
+  { id: 'mda-03', name: 'FEDERAL MINISTRY OF AGRICULTURE', category: 'Ministry', active: true },
+  { id: 'mda-04', name: 'FEDERAL MINISTRY OF MARINE AND BLUE ECONOMY', category: 'Ministry', active: true },
+  { id: 'mda-05', name: 'VOICE OF NIGERIA', category: 'Agency', active: true },
+  { id: 'mda-06', name: 'FEDERAL RADIO CORPORATION', category: 'Corporation', active: true },
+  { id: 'mda-07', name: 'FEDERAL MINISTRY OF INFORMATION AND NATIONAL ORIENTATION', category: 'Ministry', active: true },
+  { id: 'mda-08', name: 'FEDERAL MINISTRY OF STEEL DEVELOPMENT', category: 'Ministry', active: true },
+  { id: 'mda-09', name: 'FEDERAL MINISTRY OF SOLID MINERALS DEVELOPMENT', category: 'Ministry', active: true },
+  { id: 'mda-10', name: 'FEDERAL MINISTRY OF WOMEN AFFAIRS (FMWA)', category: 'Ministry', active: true },
+  { id: 'mda-11', name: 'FEDERAL CIVIL SERVICE COMMISSION', category: 'Commission', active: true },
+  { id: 'mda-12', name: 'FEDERAL MINISTRY OF BUDGET AND ECONOMIC PLANNING', category: 'Ministry', active: true },
+  { id: 'mda-13', name: 'FEDERAL MINISTRY OF JUSTICE', category: 'Ministry', active: true },
+  { id: 'mda-14', name: 'FEDERAL MINISTRY OF FOREIGN AFFAIRS', category: 'Ministry', active: true },
+  { id: 'mda-15', name: 'FEDERAL BUDGET OFFICE OF THE FEDERATION', category: 'Agency', active: true },
+  { id: 'mda-16', name: 'FEDERAL MINISTRY OF COMMUNICATIONS INNOVATION AND DIGITAL ECONOMY (FMCIDE)', category: 'Ministry', active: true },
+  { id: 'mda-17', name: 'NIGERIAN NAVY', category: 'Agency', active: true },
+  { id: 'mda-18', name: 'FEDERAL MINISTRY OF POWER', category: 'Ministry', active: true },
+  { id: 'mda-19', name: 'FEDERAL MINISTRY OF DEFENCE', category: 'Ministry', active: true },
+  { id: 'mda-20', name: 'FEDERAL MINISTRY OF FINANCE', category: 'Ministry', active: true },
+  { id: 'mda-21', name: 'OSGF CLINIC', category: 'Agency', active: true },
+  { id: 'mda-22', name: 'FEDERAL MINISTRY OF AVIATION', category: 'Ministry', active: true },
+  { id: 'mda-23', name: 'MINISTRY OF HUMANITARIAN AFFAIRS AND POVERTY ALLEVIATION', category: 'Ministry', active: true },
+  { id: 'mda-24', name: 'FEDERAL MINISTRY OF SPECIAL DUTIES AND INTER GOVERNMENTAL AFFAIRS (FMSD)', category: 'Ministry', active: true },
+  { id: 'mda-25', name: 'FEDERAL MINISTRY OF REGIONAL DEVELOPMENT', category: 'Ministry', active: true },
+  { id: 'mda-26', name: 'FEDERAL MINISTRY OF LABOUR AND EMPLOYMENT (FML)', category: 'Ministry', active: true },
+  { id: 'mda-27', name: 'CODE OF CONDUCT BUREAU (CCB)', category: 'Agency', active: true },
+  { id: 'mda-28', name: 'NATIONAL COMMISSION FOR REFUGEES, MIGRANTS AND INTERNALLY DISPLACED PERSONS (NCFRMI)', category: 'Commission', active: true },
+  { id: 'mda-29', name: 'NATIONAL INCOME, SALARIES & WAGES COMMISSION (NSIWC)', category: 'Commission', active: true },
+  { id: 'mda-30', name: 'NATIONAL COPYRIGHT COMMISSION (NCC)', category: 'Commission', active: true },
+  { id: 'mda-31', name: 'FEDERAL MINISTRY OF POLICE AFFAIRS', category: 'Ministry', active: true },
+  { id: 'mda-32', name: 'NIGERIANS IN DIASPORA COMMISSION (NIDCOM)', category: 'Commission', active: true },
+  { id: 'mda-33', name: 'NATIONAL ANTI DOPING COMMISSION (NADC)', category: 'Commission', active: true },
+  { id: 'mda-34', name: 'SSA TO PRESIDENT ON HUMANITARIAN AFFAIRS', category: 'Agency', active: true },
+  { id: 'mda-35', name: 'NIGERIA INTER RELIGIOUS COUNCIL (NIREC)', category: 'Agency', active: true },
+  { id: 'mda-36', name: 'NATIONAL CENTER FOR TECHNOLOGY MANAGEMENT (NACETEM)', category: 'Agency', active: true },
+  { id: 'mda-37', name: 'SSA TO PRESIDENT ON CHIEFTANCY MATTERS', category: 'Agency', active: true },
+  { id: 'mda-38', name: 'FEDERAL MINISTRY OF WORKS', category: 'Ministry', active: true },
+  { id: 'mda-39', name: 'RADIOGRAPHERS REGISTRATION BOARD (RRBN)', category: 'Agency', active: true },
+  { id: 'mda-40', name: 'FEDERAL MINISTRY OF ENVIRONMENT', category: 'Ministry', active: true },
+  { id: 'mda-41', name: 'ENVIRONMENTAL HEALTH REGISTRATION OFFICERS COUNCIL OF NIGERIA (EHRECON)', category: 'Agency', active: true },
+  { id: 'mda-42', name: 'FEDERAL MINISTRY OF HOUSING', category: 'Ministry', active: true },
+  { id: 'mda-43', name: 'OFFICE OF THE HEAD OF CIVIL SERVICE OF THE FEDERATION (OHCSF)', category: 'Agency', active: true },
+  { id: 'mda-44', name: 'AGRICULTURAL RESEARCH COUNCIL OF NIGERIA', category: 'Agency', active: true },
+  { id: 'mda-45', name: 'FEDERAL MINISTRY OF SCIENCE AND TECHNOLOGY', category: 'Ministry', active: true },
+  { id: 'mda-46', name: 'OFFICE OF THE SECRETARY GENERAL OF THE FEDERATION', category: 'Agency', active: true },
+  { id: 'mda-47', name: 'FEDERAL MINISTRY OF YOUTH DEVELOPMENT', category: 'Ministry', active: true },
+  { id: 'mda-48', name: 'FEDERAL MINISTRY OF LIVESTOCK DEVELOPMENT', category: 'Ministry', active: true },
+  { id: 'mda-49', name: 'FEDERAL MINISTRY OF ART AND CULTURE', category: 'Ministry', active: true },
+  { id: 'mda-50', name: 'FEDERAL MINISTRY OF INDUSTRY, TRADE AND INVESTMENT', category: 'Ministry', active: true },
+  { id: 'mda-51', name: 'FEDERAL MINISTRY OF EDUCATION', category: 'Ministry', active: true },
+  { id: 'mda-52', name: 'FEDERAL MINISTRY OF INTERIOR', category: 'Ministry', active: true },
+  { id: 'mda-53', name: 'FEDERAL MINISTRY OF HEALTH', category: 'Ministry', active: true },
+  { id: 'mda-54', name: 'FEDERAL MINISTRY OF WATER RESOURCES', category: 'Ministry', active: true },
+  { id: 'mda-55', name: 'NATIONAL ORIENTATION AGENCY', category: 'Agency', active: true },
+  { id: 'mda-56', name: 'CORRECTIONAL SERVICES & IMMIGRATION SERVICE BOARD', category: 'Agency', active: true },
+  { id: 'mda-57', name: 'NIGERIAN LAW REFORM COMMISSION', category: 'Commission', active: true },
+];
 
 // SYSTEM RESET: Maintained only essential access for system setup
 const INITIAL_USERS: User[] = [
@@ -216,10 +275,10 @@ export function FRFSystem() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // SYSTEM RESET: Initializing with empty datasets
-  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v2') || JSON.stringify(INITIAL_MDAS)));
-  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v2') || JSON.stringify(INITIAL_USERS)));
-  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v2') || "[]"));
+  // SYSTEM RESET: Initializing with the expanded official MDA dataset (v3 Synchronization)
+  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v3') || JSON.stringify(INITIAL_MDAS)));
+  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v3') || JSON.stringify(INITIAL_USERS)));
+  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v3') || "[]"));
 
   const [isEditTicketModalOpen, setIsEditTicketModalOpen] = useState(false);
   const [activeEditRecord, setActiveEditRecord] = useState<Visitation | null>(null);
@@ -231,10 +290,19 @@ export function FRFSystem() {
   const [mgmtUser, setMgmtUser] = useState<User | null>(null);
   const [mgmtMda, setMgmtMda] = useState<MDA | null>(null);
 
+  // Login form auto-fill states
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // MDA Assignment Filters State
+  const [mdaAssignSearch, setMdaAssignSearch] = useState('');
+  const [mdaAssignCategory, setMdaAssignCategory] = useState('ALL');
+  const [mdaAssignStatus, setMdaAssignStatus] = useState('ALL');
+
   useEffect(() => {
-    localStorage.setItem('gbb_mdas_v2', JSON.stringify(mdas));
-    localStorage.setItem('gbb_users_v2', JSON.stringify(users));
-    localStorage.setItem('gbb_visitations_v2', JSON.stringify(visitations));
+    localStorage.setItem('gbb_mdas_v3', JSON.stringify(mdas));
+    localStorage.setItem('gbb_users_v3', JSON.stringify(users));
+    localStorage.setItem('gbb_visitations_v3', JSON.stringify(visitations));
   }, [mdas, users, visitations]);
 
   const stats = useMemo(() => {
@@ -262,7 +330,7 @@ export function FRFSystem() {
     else { alert("Tactical Error: Invalid Credentials or Unauthorized Access."); }
   };
 
-  const handleLogout = () => { setUser(null); setAppState('LANDING'); };
+  const handleLogout = () => { setUser(null); setAppState('LANDING'); setLoginEmail(''); setLoginPassword(''); };
 
   const handleUpdateTickets = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -283,7 +351,7 @@ export function FRFSystem() {
     const fd = new FormData(e.currentTarget);
     const newMda: MDA = {
       id: mgmtMda?.id || generateId(),
-      name: fd.get('name') as string,
+      name: (fd.get('name') as string).toUpperCase(),
       category: fd.get('category') as string,
       active: fd.get('active') === 'on'
     };
@@ -328,6 +396,17 @@ export function FRFSystem() {
     setUsers(users.map(u => u.id === userId ? { ...u, assignedMdaIds: u.assignedMdaIds.includes(mdaId) ? u.assignedMdaIds.filter(id => id !== mdaId) : [...u.assignedMdaIds, mdaId] } : u));
   };
 
+  const filteredMdasForAssignment = useMemo(() => {
+    return mdas.filter(m => {
+      const matchesSearch = m.name.toLowerCase().includes(mdaAssignSearch.toLowerCase());
+      const matchesCategory = mdaAssignCategory === 'ALL' || m.category === mdaAssignCategory;
+      const matchesStatus = mdaAssignStatus === 'ALL' || 
+                           (mdaAssignStatus === 'ACTIVE' && m.active) || 
+                           (mdaAssignStatus === 'OFFLINE' && !m.active);
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [mdas, mdaAssignSearch, mdaAssignCategory, mdaAssignStatus]);
+
   // --- Sub-Views ---
 
   const MDARegistry = () => {
@@ -352,9 +431,9 @@ export function FRFSystem() {
                   <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10"><Building2 className="w-6 h-6 text-emerald-500" /></div>
                   <Badge variant={m.active ? 'success' : 'gray'}>{m.active ? 'Active' : 'Offline'}</Badge>
                 </div>
-                <h4 className="text-lg font-black text-white uppercase truncate mb-1">{m.name}</h4>
-                <div className="flex items-center gap-2 text-[9px] text-slate-500 font-black uppercase tracking-widest mb-8">
-                  <Layers className="w-3 h-3" /> {m.category}
+                <h4 className="text-sm font-black text-white uppercase truncate mb-1 leading-tight">{m.name}</h4>
+                <div className="flex items-center gap-2 text-[8px] text-slate-500 font-black uppercase tracking-widest mb-8">
+                  <Layers className="w-2.5 h-2.5" /> {m.category}
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => { setMgmtMda(m); setIsMdaEditorOpen(true); }} className="flex-1 py-3 bg-white/5 rounded-xl text-[9px] font-black uppercase text-slate-400 border border-white/5 hover:bg-white/10 transition-all">Edit Node</button>
@@ -996,14 +1075,66 @@ export function FRFSystem() {
   );
   
   if (appState === 'LOGIN') return (
-    <div className="min-h-screen bg-[#010a06] flex items-center justify-center p-8">
-      <div className="max-w-md w-full bg-[#011a0e] rounded-[60px] p-16 border border-white/10 text-center shadow-3xl animate-in slide-in-from-bottom-12 duration-700">
-        <h2 className="text-3xl font-black text-white mb-12 uppercase tracking-tight">LOGIN</h2>
-        <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.currentTarget); handleLogin(fd.get('email') as string, fd.get('password') as string); }} className="space-y-6">
-          <input name="email" type="email" placeholder="Official GBB Email" className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500" required />
-          <input name="password" type="password" placeholder="Passphrase" className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500" required />
-          <button className="w-full bg-emerald-600 py-6 rounded-3xl font-black text-white uppercase tracking-widest text-xs shadow-3xl hover:bg-emerald-500">Decrypt entry</button>
-        </form>
+    <div className="min-h-screen bg-[#010a06] flex items-center justify-center p-8 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[120px] -mr-64 -mt-64" />
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[120px] -ml-64 -mb-64" />
+      
+      <div className="max-w-md w-full z-10 space-y-8 animate-in slide-in-from-bottom-12 duration-700">
+        <div className="bg-[#011a0e] rounded-[60px] p-16 border border-white/10 text-center shadow-3xl">
+          <div className="w-20 h-20 bg-emerald-600/10 border border-emerald-500/20 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-inner">
+            <Fingerprint className="w-10 h-10 text-emerald-500" />
+          </div>
+          <h2 className="text-3xl font-black text-white mb-12 uppercase tracking-tight">Personnel Authentication</h2>
+          <form onSubmit={e => { e.preventDefault(); handleLogin(loginEmail, loginPassword); }} className="space-y-6">
+            <input 
+              value={loginEmail}
+              onChange={e => setLoginEmail(e.target.value)}
+              name="email" 
+              type="email" 
+              placeholder="Official GBB Email" 
+              className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all" 
+              required 
+            />
+            <input 
+              value={loginPassword}
+              onChange={e => setLoginPassword(e.target.value)}
+              name="password" 
+              type="password" 
+              placeholder="Password" 
+              className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all" 
+              required 
+            />
+            <button className="w-full bg-emerald-600 py-6 rounded-3xl font-black text-white uppercase tracking-widest text-xs shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Authorize Entry</button>
+          </form>
+        </div>
+
+        {/* Tactical Credentials Display */}
+        <div className="bg-black/40 backdrop-blur-md rounded-[40px] p-8 border border-white/5 space-y-6">
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-px bg-white/10 flex-1" />
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Strategic Access Codes</p>
+            <div className="h-px bg-white/10 flex-1" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <button 
+              onClick={() => { setLoginEmail('admin@gbb.com.ng'); setLoginPassword('admin123'); }}
+              className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl hover:bg-emerald-600/10 hover:border-emerald-500/30 transition-all group text-left"
+            >
+              <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-1 group-hover:text-emerald-400">ADMINISTRATOR</p>
+              <p className="text-[11px] font-bold text-white truncate opacity-80">admin@gbb.com.ng</p>
+              <p className="text-[8px] font-black text-slate-600 mt-2 uppercase tracking-tighter">KEY: admin123</p>
+            </button>
+            <button 
+              onClick={() => { setLoginEmail('css@gbb.com.ng'); setLoginPassword('css123'); }}
+              className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl hover:bg-blue-600/10 hover:border-blue-500/30 transition-all group text-left"
+            >
+              <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1 group-hover:text-blue-400">SECTOR HEAD</p>
+              <p className="text-[11px] font-bold text-white truncate opacity-80">css@gbb.com.ng</p>
+              <p className="text-[8px] font-black text-slate-600 mt-2 uppercase tracking-tighter">KEY: css123</p>
+            </button>
+          </div>
+          <p className="text-[8px] font-black text-slate-600 uppercase text-center tracking-[0.2em] animate-pulse italic">Click a profile node to auto-populate the terminal</p>
+        </div>
       </div>
     </div>
   );
@@ -1048,7 +1179,7 @@ export function FRFSystem() {
           <form onSubmit={handleSaveUser} className="p-10 space-y-8">
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Personnel Name</label><input name="name" defaultValue={mgmtUser?.name} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Secure Email</label><input name="email" type="email" defaultValue={mgmtUser?.email} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Passphrase</label><input name="password" type="text" placeholder={mgmtUser ? "Enter new or leave for current" : "Define Access Key"} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Password</label><input name="password" type="text" placeholder={mgmtUser ? "Enter new or leave for current" : "Define Password"} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Role</label><select name="role" defaultValue={mgmtUser?.role || 'FRF'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="FRF">FIRST RESPONDENT (FRF)</option><option value="ADMIN">SUPERVISOR (ADMIN)</option><option value="HEAD_OF_CSS">SECTOR HEAD (CSS)</option></select></div>
               <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Provision Records</button>
           </form>
@@ -1058,7 +1189,7 @@ export function FRFSystem() {
           <form onSubmit={handleSaveMda} className="p-10 space-y-8">
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Formal Designation</label><input name="name" defaultValue={mgmtMda?.name} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs uppercase" /></div>
               <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Category</label><select name="category" defaultValue={mgmtMda?.category || 'Ministry'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="Ministry">Ministry</option><option value="Agency">Agency</option><option value="Corporation">Corporation</option></select></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Category</label><select name="category" defaultValue={mgmtMda?.category || 'Ministry'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="Ministry">Ministry</option><option value="Agency">Agency</option><option value="Corporation">Corporation</option><option value="Commission">Commission</option><option value="Board">Board</option></select></div>
                   <div className="flex flex-col items-center justify-center p-5 bg-black/40 border border-white/10 rounded-2xl"><label className="text-[10px] font-black text-slate-500 uppercase mb-3">Sync Active</label><input type="checkbox" name="active" defaultChecked={mgmtMda?.active ?? true} className="w-6 h-6 accent-emerald-500" /></div>
               </div>
               <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Verify Hub Provision</button>
@@ -1067,11 +1198,60 @@ export function FRFSystem() {
 
       <Modal isOpen={isAssignMdaOpen} onClose={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} title={`Tactical Node Mapping: ${mgmtUser?.name}`}>
           <div className="p-10 space-y-6">
-              <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                  {mdas.length === 0 && <p className="text-center py-10 text-slate-500 font-black text-[10px] uppercase">No Hubs Provisioned Yet</p>}
-                  {mdas.map(m => (
-                      <div key={m.id} onClick={() => mgmtUser && handleToggleMdaAssign(mgmtUser.id, m.id)} className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${mgmtUser?.assignedMdaIds.includes(m.id) ? 'bg-emerald-600/20 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}><div><p className={`text-[11px] font-black uppercase truncate ${mgmtUser?.assignedMdaIds.includes(m.id) ? 'text-emerald-400' : 'text-white'}`}>{m.name}</p></div>{mgmtUser?.assignedMdaIds.includes(m.id) ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Plus className="w-4 h-4 text-slate-700" />}</div>
-                  ))}
+              {/* Tactical Filtering Console */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-black/40 rounded-3xl border border-white/5">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                  <input 
+                    value={mdaAssignSearch} 
+                    onChange={e => setMdaAssignSearch(e.target.value)} 
+                    placeholder="Search Nodes..." 
+                    className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none focus:border-emerald-500/50" 
+                  />
+                </div>
+                <select 
+                  value={mdaAssignCategory} 
+                  onChange={e => setMdaAssignCategory(e.target.value)} 
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none appearance-none cursor-pointer hover:bg-white/[0.08]"
+                >
+                  <option value="ALL">All Categories</option>
+                  <option value="Ministry">Ministries</option>
+                  <option value="Agency">Agencies</option>
+                  <option value="Commission">Commissions</option>
+                  <option value="Corporation">Corporations</option>
+                  <option value="Board">Boards</option>
+                </select>
+                <select 
+                  value={mdaAssignStatus} 
+                  onChange={e => setMdaAssignStatus(e.target.value)} 
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none appearance-none cursor-pointer hover:bg-white/[0.08]"
+                >
+                  <option value="ALL">All Status</option>
+                  <option value="ACTIVE">Active Only</option>
+                  <option value="OFFLINE">Offline Only</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                  {filteredMdasForAssignment.length === 0 ? (
+                    <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-3xl">
+                      <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">No matching tactical nodes found</p>
+                    </div>
+                  ) : (
+                    filteredMdasForAssignment.map(m => (
+                      <div key={m.id} onClick={() => mgmtUser && handleToggleMdaAssign(mgmtUser.id, m.id)} className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${mgmtUser?.assignedMdaIds.includes(m.id) ? 'bg-emerald-600/20 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                        <div className="min-w-0 pr-4">
+                          <p className={`text-[10px] font-black uppercase truncate ${mgmtUser?.assignedMdaIds.includes(m.id) ? 'text-emerald-400' : 'text-white'}`}>{m.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-[8px] text-slate-600 font-bold uppercase">{m.category}</p>
+                            <div className="w-1 h-1 rounded-full bg-slate-800" />
+                            <p className={`text-[8px] font-bold uppercase ${m.active ? 'text-emerald-600/70' : 'text-rose-600/70'}`}>{m.active ? 'Active' : 'Offline'}</p>
+                          </div>
+                        </div>
+                        {mgmtUser?.assignedMdaIds.includes(m.id) ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Plus className="w-4 h-4 text-slate-700 shrink-0" />}
+                      </div>
+                    ))
+                  )}
               </div>
               <button onClick={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Finalize Strategy Mapping</button>
           </div>
