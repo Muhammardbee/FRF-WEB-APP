@@ -489,6 +489,7 @@ export function FRFSystem() {
                 <div className="flex gap-2">
                   <button onClick={() => { setMgmtUser(u); setIsUserEditorOpen(true); }} className="flex-1 py-3 bg-white/5 rounded-xl text-[9px] font-black uppercase text-slate-400 border border-white/5 hover:bg-white/10 transition-all">Edit</button>
                   {u.role === 'FRF' && <button onClick={() => { setMgmtUser(u); setIsAssignMdaOpen(true); }} className="flex-1 py-3 bg-emerald-600/10 text-emerald-500 rounded-xl text-[9px] font-black uppercase border border-emerald-500/10 hover:bg-emerald-600/20 transition-all">Hubs ({u.assignedMdaIds.length})</button>}
+                  {/* Fixed: Passing u.id directly as a string to handleDeleteUser */}
                   <button onClick={() => handleDeleteUser(u.id)} className="p-3 bg-rose-600/10 text-rose-500 rounded-xl border border-rose-500/10 hover:bg-rose-600 hover:text-white transition-all"><ShieldX className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -1119,30 +1120,6 @@ export function FRFSystem() {
             />
             <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Authorize Entry</button>
           </form>
-        </div>
-
-        {/* Tactical Credentials Display */}
-        <div className="bg-black/40 backdrop-blur-md rounded-[32px] p-6 border border-white/5 space-y-4">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] text-center mb-4">Strategic Profiles</p>
-          <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
-            {users.map(u => (
-              <button 
-                key={u.id}
-                onClick={() => { setLoginEmail(u.email); setLoginPassword(u.password || 'frf123'); }}
-                className={`p-4 rounded-2xl border text-left transition-all group flex items-center gap-4 ${u.role === 'ADMIN' ? 'bg-rose-600/5 border-rose-500/10 hover:bg-rose-600/10' : u.role === 'HEAD_OF_CSS' ? 'bg-blue-600/5 border-blue-500/10 hover:bg-blue-600/10' : 'bg-emerald-600/5 border-emerald-500/10 hover:bg-emerald-600/10'}`}
-              >
-                <div className="p-2 bg-white/5 rounded-lg shrink-0">
-                  {u.role === 'ADMIN' ? <ShieldAlert className="w-3.5 h-3.5 text-rose-500" /> : u.role === 'HEAD_OF_CSS' ? <MonitorCheck className="w-3.5 h-3.5 text-blue-500" /> : <Users className="w-3.5 h-3.5 text-emerald-500" />}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{u.role === 'FRF' ? 'RESPONDENT' : u.role}</p>
-                  <p className="text-[10px] font-black text-white truncate">{u.name}</p>
-                  <p className="text-[7px] font-bold text-slate-600 truncate">{u.email}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-          <p className="text-[7px] font-black text-slate-600 uppercase text-center tracking-[0.2em] animate-pulse">Select node to bypass entry encryption</p>
         </div>
       </div>
     </div>
