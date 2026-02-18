@@ -51,7 +51,8 @@ import {
   AlertOctagon,
   ClipboardType,
   KeyRound,
-  ShieldX
+  ShieldX,
+  RotateCcw
 } from 'lucide-react';
 
 // --- Types & Interfaces ---
@@ -62,7 +63,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  password?: string; // Admin-defined login credential
+  password?: string;
   role: Role;
   assignedMdaIds: string[];
 }
@@ -79,7 +80,7 @@ const REASONS_NOT_VISITED = [
   "ABSENT - SICK WITH EXCUSE",
   "DRAFTED TO WORK/SUPPORT AT THE SERVICEDESK",
   "LOGISTICS CHALLENGES (NON AVAILABILITY OF BUS, DRIVER, FUEL ETC)",
-  "PUBLIC HOLIDAY",
+  "PUBLIC HOLDAY",
   "DEPARTMENTAL MEETING",
   "REQUEST/INCIDENT AT CUSTOMER SITE REMAIN UNRESOLVED",
   "CDS",
@@ -109,78 +110,18 @@ interface Visitation {
 
 const LOGO_URL = "http://galaxybackbone.com.ng/wp-content/uploads/2020/12/Galaxy-New-Logo-scaled.jpg";
 
-const INITIAL_MDAS: MDA[] = [
-  { id: '1', name: 'FEDERAL MINISTRY OF TRANSPORTATION', category: 'Ministry', active: true },
-  { id: '2', name: 'FEDERAL CAPITAL TERRITORY ADMINISTRATION', category: 'Agency', active: true },
-  { id: '3', name: 'FEDERAL MINISTRY OF AGRICULTURE', category: 'Ministry', active: true },
-  { id: '4', name: 'FEDERAL MINISTRY OF MARINE AND BLUE ECONOMY', category: 'Ministry', active: true },
-  { id: '5', name: 'VOICE OF NIGERIA', category: 'Corporation', active: true },
-  { id: '6', name: 'FEDERAL RADIO CORPORATION', category: 'Corporation', active: true },
-];
+// SYSTEM RESET: Cleared MDAs for manual provisioning
+const INITIAL_MDAS: MDA[] = [];
 
-const FRF_NAMES = [
-    "ABASIAMA UKPONG", "ADEWALE AHMAD- OVERALL FRF HEAD", "ADEYEMI ADERONKE FRF GROUP HEAD 2",
-    "ASMAU ALAKALI", "BEMSEN KPONGO", "CHINEDU CHUKWU", "DANIEL AYUBA", "DAVID AOGO",
-    "DAVID OYERINDE", "EBELE IKENWEIWE", "FAITH ICHOJI", "HALEEMAT ABDULQUADRI ASST FRF GROUP HEAD1",
-    "IYINOLUWA TOLUHI FRF GROUP HEAD 1", "JESSE NASAMU", "JOHN BLESSED", "JOSHUA AYODEJI",
-    "KOSISOCHUKWU IBEKWE", "MARYAM ABUBAKAR", "MATHEW IKPEN", "MUBARAK RAJI",
-    "MUHAMMAD BELLO ASST FRF GROUP HEAD 2", "MUHAMMAD GALADIMA", "NELSON ADEKUNLE",
-    "NELSON UWAKWE", "OLABUKUN SAMUEL", "PRAISE IFEOLUWA", "PROMISE IFEOLUWA",
-    "SADIYA MUHAMMAD", "UMAR ABDULSAMAD", "VICTORIA NYAM"
-];
-
+// SYSTEM RESET: Maintained only essential access for system setup
 const INITIAL_USERS: User[] = [
-  { id: 'u1', name: 'Director General', email: 'admin@gbb.gov.ng', password: 'admin123', role: 'ADMIN', assignedMdaIds: [] },
-  { id: 'u4', name: 'Head of CSS', email: 'css@gbb.gov.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] },
-  ...FRF_NAMES.map((name, i) => ({
-      id: `u-frf-${i}`,
-      name: name,
-      email: `${name.toLowerCase().replace(/ /g, '.')}@gbb.gov.ng`,
-      password: 'frf123',
-      role: 'FRF' as Role,
-      assignedMdaIds: ['1', '2', '3']
-  }))
+  { id: 'u1', name: 'Strategic Administrator', email: 'admin@gbb.com.ng', password: 'admin123', role: 'ADMIN', assignedMdaIds: [] },
+  { id: 'u4', name: 'Head of CSS', email: 'css@gbb.com.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] }
 ];
-
-const generateTwoWeekHistory = (): Visitation[] => {
-  const data: Visitation[] = [];
-  const dates = ['2026-02-02', '2026-02-03', '2026-02-04', '2026-02-05', '2026-02-06'];
-  const mdaNames = ["FEDERAL MINISTRY OF HOUSING", "FEDERAL MINISTRY OF WORKS", "FEDERAL MINISTRY OF AGRICULTURE"];
-  
-  INITIAL_USERS.filter(u => u.role === 'FRF').forEach((agent) => {
-    dates.forEach(date => {
-        const wasVisited = Math.random() > 0.2 ? 'Yes' : 'No';
-        const isIncident = wasVisited === 'Yes' && Math.random() > 0.85;
-        // User update: Only capture comments supplied by FRF, otherwise N/A.
-        // Seeding some with actual findings and some as N/A to reflect real use.
-        const seedComment = Math.random() > 0.6 ? (wasVisited === 'Yes' ? "Verified infrastructure integrity. No leaks detected." : "Could not gain entry to data hall.") : "";
-        
-        data.push({
-            id: generateId(),
-            frfId: agent.id, 
-            frfName: agent.name, 
-            date: date, 
-            timestamp: new Date(date).getTime(), 
-            mdaId: String(Math.floor(Math.random() * 6) + 1), 
-            mdaName: mdaNames[Math.floor(Math.random() * mdaNames.length)],
-            wasVisited,
-            reasonNotVisited: wasVisited === 'No' ? REASONS_NOT_VISITED[Math.floor(Math.random() * REASONS_NOT_VISITED.length)] : undefined,
-            hasIncident: isIncident ? 'Yes' : 'No', 
-            incidentTicket: isIncident ? `INCT2602${Math.floor(1000 + Math.random() * 9000)}` : undefined,
-            incidentStatus: isIncident ? (Math.random() > 0.5 ? 'YES RESOLVED' : 'NO PENDING') : undefined,
-            hasRequest: 'No', 
-            comments: seedComment
-        });
-    });
-  });
-
-  return data;
-};
 
 // --- Utils ---
 const generateId = () => Math.random().toString(36).substring(2, 11);
 const getTodayString = () => new Date().toISOString().split('T')[0];
-const formatDate = (date: string) => new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
 // --- UI Components ---
 
@@ -275,9 +216,10 @@ export function FRFSystem() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas') || JSON.stringify(INITIAL_MDAS)));
-  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users') || JSON.stringify(INITIAL_USERS)));
-  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations') || JSON.stringify(generateTwoWeekHistory())));
+  // SYSTEM RESET: Initializing with empty datasets
+  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v2') || JSON.stringify(INITIAL_MDAS)));
+  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v2') || JSON.stringify(INITIAL_USERS)));
+  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v2') || "[]"));
 
   const [isEditTicketModalOpen, setIsEditTicketModalOpen] = useState(false);
   const [activeEditRecord, setActiveEditRecord] = useState<Visitation | null>(null);
@@ -290,9 +232,9 @@ export function FRFSystem() {
   const [mgmtMda, setMgmtMda] = useState<MDA | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('gbb_mdas', JSON.stringify(mdas));
-    localStorage.setItem('gbb_users', JSON.stringify(users));
-    localStorage.setItem('gbb_visitations', JSON.stringify(visitations));
+    localStorage.setItem('gbb_mdas_v2', JSON.stringify(mdas));
+    localStorage.setItem('gbb_users_v2', JSON.stringify(users));
+    localStorage.setItem('gbb_visitations_v2', JSON.stringify(visitations));
   }, [mdas, users, visitations]);
 
   const stats = useMemo(() => {
@@ -310,11 +252,11 @@ export function FRFSystem() {
   }, [mdas, visitations, user, users]);
 
   const handleLogin = (email: string, pass: string) => {
-    const found = users.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password || 'gbb123') === pass);
+    const found = users.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password || 'admin123') === pass);
     if (found) { 
       setUser(found); 
       setAppState('APP'); 
-      if (found.role === 'HEAD_OF_CSS') setActiveTab('css_intelligence');
+      if (found.role === 'HEAD_OF_CSS') setActiveTab('reports');
       else setActiveTab('dashboard'); 
     }
     else { alert("Tactical Error: Invalid Credentials or Unauthorized Access."); }
@@ -365,7 +307,7 @@ export function FRFSystem() {
       id: mgmtUser?.id || generateId(),
       name: fd.get('name') as string, 
       email: fd.get('email') as string, 
-      password: fd.get('password') as string || mgmtUser?.password || 'gbb123',
+      password: fd.get('password') as string || mgmtUser?.password || 'admin123',
       role: fd.get('role') as Role,
       assignedMdaIds: mgmtUser?.assignedMdaIds || []
     };
@@ -401,6 +343,7 @@ export function FRFSystem() {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.length === 0 && <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[40px]"><p className="text-slate-500 font-black text-xs uppercase tracking-[0.3em]">No Hubs Provisioned</p></div>}
           {filtered.map(m => (
             <div key={m.id} className="bg-[#011a0e] p-8 rounded-[40px] border border-white/5 group hover:border-emerald-500/30 transition-all shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-110 transition-transform" />
@@ -444,7 +387,7 @@ export function FRFSystem() {
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-6">
                   <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10"><Users className="w-6 h-6 text-emerald-500" /></div>
-                  <Badge variant={u.role === 'ADMIN' ? 'error' : u.role === 'HEAD_OF_CSS' ? 'info' : 'success'}>{u.role}</Badge>
+                  <Badge variant={u.role === 'ADMIN' ? 'error' : u.role === 'HEAD_OF_CSS' ? 'info' : 'success'}>{u.role === 'FRF' ? 'First Respondent' : u.role}</Badge>
                 </div>
                 <h4 className="text-lg font-black text-white uppercase truncate">{u.name}</h4>
                 <p className="text-[10px] text-slate-500 font-bold uppercase truncate mb-1">{u.email}</p>
@@ -465,8 +408,8 @@ export function FRFSystem() {
   };
 
   const ReportsView = () => {
-    const [startDate, setStartDate] = useState('2026-02-02');
-    const [endDate, setEndDate] = useState('2026-02-06');
+    const [startDate, setStartDate] = useState(getTodayString());
+    const [endDate, setEndDate] = useState(getTodayString());
     const [reportMode, setReportMode] = useState<'PERSONNEL' | 'MASTER' | 'WEEKLY'>('WEEKLY');
     const [exportFormat, setExportFormat] = useState<'PDF' | 'CSV' | 'XLSX'>('CSV');
     const [isExporting, setIsExporting] = useState(false);
@@ -474,7 +417,7 @@ export function FRFSystem() {
     const EXPORT_FIELDS = [
       { id: 'date', label: 'Date' },
       { id: 'mdaName', label: 'MDA Node' },
-      { id: 'frfName', label: 'Operative' },
+      { id: 'frfName', label: 'Respondent' },
       { id: 'wasVisited', label: 'Visited' },
       { id: 'hasIncident', label: 'Incident' },
       { id: 'incidentTicket', label: 'Ticket ID' },
@@ -530,6 +473,11 @@ export function FRFSystem() {
       setIsExporting(true);
       setTimeout(() => {
           try {
+              if (exportFormat === 'PDF') {
+                  window.print();
+                  setIsExporting(false);
+                  return;
+              }
               const delimiter = exportFormat === 'XLSX' ? '\t' : ',';
               const extension = exportFormat === 'XLSX' ? 'xls' : 'csv';
               const mimeType = exportFormat === 'XLSX' ? 'application/vnd.ms-excel' : 'text/csv;charset=utf-8;';
@@ -548,14 +496,13 @@ export function FRFSystem() {
                 ["TOTAL NUMBER OF REQUEST GRANTED", audit.requestsGranted],
                 ["REQUEST UNGRANTED/PENDING RESOLUTION", audit.requestsPending],
                 ["Total Number of Responses", audit.totalResponses],
-                ["Total Number of FRF Actual Visits to MDAs", audit.actualVisitsCount],
-                ["Total Number of FRF Actual MDAs Not Visited", audit.actualNotVisitedCount],
+                ["Total Number of First Respondent Actual Visits to MDAs", audit.actualVisitsCount],
+                ["Total Number of First Respondent Actual MDAs Not Visited", audit.actualNotVisitedCount],
                 ["Reason for not visiting", ""],
                 ...REASONS_NOT_VISITED.map(r => [r, audit.reasonCounts[r]]),
                 ["COMPLAINED & RESOLVED INCIDENT", audit.incidentsResolved],
                 ["State ticket numbers", audit.incidentTickets || "N/A"],
                 ["Customer Comment/Findings/Suggestion/Specal Request/Complaint?", ""],
-                // User update: Ensure only comments supplied by frf are captured, else N/A
                 ...audit.rawData.map(v => [v.mdaName, v.comments?.trim() ? v.comments : "N/A"])
               ];
               
@@ -576,6 +523,11 @@ export function FRFSystem() {
         setIsExporting(true);
         setTimeout(() => {
             try {
+                if (exportFormat === 'PDF') {
+                    window.print();
+                    setIsExporting(false);
+                    return;
+                }
                 const data = audit.rawData;
                 const activeFields = EXPORT_FIELDS.filter(f => selectedCols.includes(f.id));
                 const headers = activeFields.map(f => f.label);
@@ -587,10 +539,9 @@ export function FRFSystem() {
                 outputContent += headers.join(delimiter) + "\n";
                 data.forEach(v => {
                     const row = activeFields.map(f => {
-                        const val = (v as any)[f.id] || "";
+                        let val = (v as any)[f.id] || "";
+                        if (f.id === 'comments' && !String(val).trim()) val = "N/A";
                         let cleaned = String(val).replace(/\n/g, ' ').replace(/\r/g, '');
-                        // Handle the comment specifically in master too
-                        if (f.id === 'comments' && !cleaned.trim()) cleaned = "N/A";
                         if (exportFormat === 'CSV') return `"${cleaned.replace(/"/g, '""')}"`;
                         return cleaned;
                     });
@@ -614,11 +565,14 @@ export function FRFSystem() {
 
     return (
         <div className="space-y-10 animate-in fade-in duration-700 pb-20 print:p-0">
+            {/* Dynamic Print Header */}
             <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
               <div className="flex justify-between items-end">
                 <img src={LOGO_URL} className="h-10 grayscale" />
                 <div className="text-right">
-                  <h1 className="text-xl font-black uppercase tracking-tight text-slate-900">Strategic Weekly Intelligence</h1>
+                  <h1 className="text-xl font-black uppercase tracking-tight text-slate-900">
+                    {reportMode === 'WEEKLY' ? 'Strategic Weekly Intelligence Summary' : 'Master Tactical Audit Log'}
+                  </h1>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Generated: {new Date().toLocaleString()}</p>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Audit Window: {startDate} — {endDate}</p>
                 </div>
@@ -664,8 +618,8 @@ export function FRFSystem() {
                         { label: "Total Field Verification Gaps", val: audit.actualNotVisitedCount }
                       ].map(m => (
                         <div key={m.label} className="flex justify-between items-center py-3 border-b border-white/5">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.label}</span>
-                          <span className={`text-xl font-black ${m.color || 'text-white'}`}>{m.val}</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest print:text-slate-700">{m.label}</span>
+                          <span className={`text-xl font-black ${m.color || 'text-white'} print:text-slate-900`}>{m.val}</span>
                         </div>
                       ))}
                     </div>
@@ -678,13 +632,13 @@ export function FRFSystem() {
                         { label: "INCIDENTS PENDING", val: audit.incidentsPending, color: "text-rose-600" }
                       ].map(m => (
                         <div key={m.label} className="flex justify-between items-center py-3 border-b border-white/5">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.label}</span>
-                          <span className={`text-xl font-black ${m.color || 'text-white'}`}>{m.val}</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest print:text-slate-700">{m.label}</span>
+                          <span className={`text-xl font-black ${m.color || 'text-white'} print:text-slate-900`}>{m.val}</span>
                         </div>
                       ))}
                       <div className="pt-4">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Synchronized Ticket Index</p>
-                        <div className="p-4 bg-black/40 rounded-xl border border-white/10 text-[11px] font-mono text-emerald-500 break-words leading-relaxed">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 print:text-slate-600">Synchronized Ticket Index</p>
+                        <div className="p-4 bg-black/40 rounded-xl border border-white/10 text-[11px] font-mono text-emerald-500 break-words leading-relaxed print:bg-slate-50 print:border-slate-200 print:text-slate-900">
                           {audit.incidentTickets || "No incidents logged in window."}
                         </div>
                       </div>
@@ -695,9 +649,9 @@ export function FRFSystem() {
                   <CommandCard title="Verification Gap Justification" icon={AlertTriangle}>
                     <div className="space-y-3">
                       {REASONS_NOT_VISITED.map(reason => (
-                        <div key={reason} className="flex justify-between items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 group hover:bg-emerald-600/10 transition-all">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight group-hover:text-white transition-all">{reason}</span>
-                          <span className="text-sm font-black text-white tabular-nums px-3 py-1 bg-white/5 rounded-lg border border-white/10">{audit.reasonCounts[reason]}</span>
+                        <div key={reason} className="flex justify-between items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 group hover:bg-emerald-600/10 transition-all print:bg-white print:border-slate-200">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight group-hover:text-white transition-all print:text-slate-800">{reason}</span>
+                          <span className="text-sm font-black text-white tabular-nums px-3 py-1 bg-white/5 rounded-lg border border-white/10 print:text-slate-900 print:border-slate-300">{audit.reasonCounts[reason]}</span>
                         </div>
                       ))}
                     </div>
@@ -706,19 +660,19 @@ export function FRFSystem() {
                     <CommandCard title="Request & Feedback Intelligence" icon={ClipboardType}>
                       <div className="space-y-4">
                         <div className="flex justify-between items-center py-3 border-b border-white/5">
-                          <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Requests Received</span>
-                          <span className="text-xl font-black text-white">{audit.requestsReceived}</span>
+                          <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest print:text-blue-800">Requests Received</span>
+                          <span className="text-xl font-black text-white print:text-slate-900">{audit.requestsReceived}</span>
                         </div>
-                        <div className="p-4 bg-black/40 rounded-xl border border-white/10 text-[11px] font-mono text-blue-400 break-words">
+                        <div className="p-4 bg-black/40 rounded-xl border border-white/10 text-[11px] font-mono text-blue-400 break-words print:bg-slate-50 print:border-slate-200 print:text-slate-900">
                           {audit.requestTickets || "No special requests logged."}
                         </div>
                       </div>
                     </CommandCard>
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 print:hidden">
                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] text-center">Intelligence Terminal</p>
                       <div className="grid grid-cols-3 gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5">
                         {['PDF', 'CSV', 'XLSX'].map(fmt => (
-                          <button key={fmt} onClick={() => setExportFormat(fmt as any)} className={`py-3 rounded-xl text-[9px] font-black uppercase transition-all ${exportFormat === fmt ? 'bg-emerald-600 text-white shadow-xl' : 'text-slate-500 hover:text-white'}`}>
+                          <button key={fmt} onClick={() => setExportFormat(fmt as any)} className={`py-3 rounded-xl text-[10px] font-black uppercase transition-all ${exportFormat === fmt ? 'bg-emerald-600 text-white shadow-xl' : 'text-slate-500 hover:text-white'}`}>
                             {fmt}
                           </button>
                         ))}
@@ -789,11 +743,34 @@ export function FRFSystem() {
                             </div>
                         </CommandCard>
                     </div>
+
+                    {/* Visible Master List for Printing */}
+                    <div className="hidden print:block space-y-4">
+                      {audit.rawData.map(v => (
+                        <div key={v.id} className="p-4 border border-slate-200 rounded-lg bg-white">
+                          <div className="flex justify-between mb-2">
+                            <span className="text-[10px] font-black uppercase text-slate-900">{v.mdaName}</span>
+                            <span className="text-[10px] text-slate-500">{v.date}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 text-[9px] uppercase font-bold text-slate-700">
+                            <div>Visited: <span className={v.wasVisited === 'Yes' ? 'text-emerald-700' : 'text-rose-700'}>{v.wasVisited}</span></div>
+                            <div>Incident: <span className={v.hasIncident === 'Yes' ? 'text-rose-700' : 'text-emerald-700'}>{v.hasIncident}</span></div>
+                            <div>Respondent: {v.frfName}</div>
+                          </div>
+                          {v.comments && v.comments !== 'N/A' && (
+                            <div className="mt-2 text-[9px] text-slate-600 italic border-t border-slate-100 pt-1">
+                              Comment: {v.comments}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                 </div>
             ) : (
                 <div className="animate-in slide-in-from-bottom-4 duration-500">
                     <CommandCard title="Personnel Tactical Rankings" subtitle={`Verification Window: ${startDate} to ${endDate}`} icon={FileStack}>
                         <div className="space-y-2">
+                            {audit.personnelCounts.length === 0 && <p className="text-center py-10 text-slate-500 font-black text-[10px] uppercase tracking-widest">No Operational Personnel Found</p>}
                             {audit.personnelCounts.map((row, idx) => (
                                 <div key={row.id} className="flex justify-between items-center p-6 rounded-3xl bg-white/[0.02] border border-white/5 group hover:bg-emerald-600/10 transition-all print:bg-white print:border-slate-200 print:p-4">
                                     <div className="flex items-center gap-6">
@@ -816,6 +793,14 @@ export function FRFSystem() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
+
+    const clearFilters = () => {
+      setQ('');
+      setStartDate('');
+      setEndDate('');
+      setStatusFilter('ALL');
+    };
+
     const baseData = user?.role === 'FRF' ? visitations.filter(v => v.frfId === user?.id) : visitations;
     const filteredData = useMemo(() => {
         return baseData.filter(v => {
@@ -831,28 +816,55 @@ export function FRFSystem() {
         }).reverse();
     }, [baseData, q, startDate, endDate, statusFilter]);
 
+    const isFiltered = q || startDate || endDate || statusFilter !== 'ALL';
+
     return (
       <div className="space-y-6 animate-in fade-in duration-700">
-        <div className="bg-[#011a0e] p-8 rounded-[40px] border border-white/5 space-y-8 shadow-3xl">
+        <div className="bg-[#011a0e] p-8 rounded-[40px] border border-white/5 space-y-8 shadow-3xl print:hidden">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
-            <div className="flex-1 text-center sm:text-left"><h2 className="text-3xl font-black text-white uppercase tracking-tighter">Strategic Vault</h2><p className="text-[10px] font-black text-slate-500 uppercase mt-1">Total Records: {filteredData.length}</p></div>
-            <div className="relative w-full sm:w-[400px]"><Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="SEARCH NODES..." className="w-full pl-14 pr-6 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-[11px] uppercase outline-none focus:ring-1 focus:ring-emerald-500" /></div>
+            <div className="flex-1 text-center sm:text-left">
+              <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Strategic Vault</h2>
+              <p className="text-[10px] font-black text-slate-500 uppercase mt-1">Total Records: {filteredData.length}</p>
+            </div>
+            <div className="relative w-full sm:w-[400px]">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder="SEARCH NODES..." className="w-full pl-14 pr-6 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-[11px] uppercase outline-none focus:ring-1 focus:ring-emerald-500" />
+            </div>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6 border-t border-white/5">
-            <div className="space-y-3"><p className="text-[9px] font-black text-slate-500 uppercase flex items-center gap-2"><CalendarRange className="w-3 h-3 text-emerald-500" /> Deployment Window</p><DateRangePicker start={startDate} end={endDate} onStartChange={setStartDate} onEndChange={setEndDate} labelStart="Min" labelEnd="Max" /></div>
-            <div className="space-y-3"><p className="text-[9px] font-black text-slate-500 uppercase flex items-center gap-2"><Filter className="w-3 h-3 text-blue-500" /> Sector Filter</p><select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-[10px] font-black text-white uppercase outline-none appearance-none"><option value="ALL">ALL LOGS</option><option value="YES RESOLVED">RESOLVED</option><option value="NO PENDING">PENDING</option><option value="PROCESSING">PROCESSING</option><option value="NO INCIDENT">SECURE</option></select></div>
+            <div className="space-y-3">
+              <p className="text-[9px] font-black text-slate-500 uppercase flex items-center gap-2"><CalendarRange className="w-3 h-3 text-emerald-500" /> Deployment Window</p>
+              <DateRangePicker start={startDate} end={endDate} onStartChange={setStartDate} onEndChange={setEndDate} labelStart="Min" labelEnd="Max" />
+            </div>
+            <div className="space-y-3 flex items-end gap-3">
+              <div className="flex-1">
+                <p className="text-[9px] font-black text-slate-500 uppercase flex items-center gap-2 mb-3"><Filter className="w-3 h-3 text-blue-500" /> Sector Filter</p>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-[10px] font-black text-white uppercase outline-none appearance-none"><option value="ALL">ALL LOGS</option><option value="YES RESOLVED">RESOLVED</option><option value="NO PENDING">PENDING</option><option value="PROCESSING">PROCESSING</option><option value="NO INCIDENT">SECURE</option></select>
+              </div>
+              {isFiltered && (
+                <button 
+                  onClick={clearFilters} 
+                  className="px-6 py-[18px] bg-rose-600/10 text-rose-500 rounded-2xl border border-rose-500/10 hover:bg-rose-600 hover:text-white transition-all shrink-0 flex items-center gap-2 group h-fit"
+                  title="Clear All Filters"
+                >
+                  <RotateCcw className="w-4 h-4 group-hover:-rotate-180 transition-transform duration-500" />
+                  <span className="text-[10px] font-black uppercase whitespace-nowrap">Clear All</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <div className="space-y-4 max-h-[1000px] overflow-y-auto custom-scrollbar pr-2">
+          {filteredData.length === 0 && <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[40px]"><p className="text-slate-500 font-black text-xs uppercase tracking-[0.3em]">No Historical Data Captured</p></div>}
           {filteredData.map(v => (
-            <div key={v.id} className="bg-[#011a0e] p-6 rounded-[28px] border border-white/5 flex justify-between items-center group shadow-lg hover:border-emerald-500/20 transition-all">
+            <div key={v.id} className="bg-[#011a0e] p-6 rounded-[28px] border border-white/5 flex justify-between items-center group shadow-lg hover:border-emerald-500/20 transition-all print:bg-white print:border-slate-200">
               <div className="flex items-center gap-6">
-                <div className="text-center bg-white/5 p-4 rounded-xl min-w-[80px] border border-white/5"><p className="text-3xl font-black text-white">{new Date(v.date).getDate()}</p><p className="text-[9px] font-black text-slate-500 uppercase">{new Date(v.date).toLocaleString('default', { month: 'short' })}</p></div>
-                <div><h4 className="text-lg font-black text-white uppercase tracking-tight">{v.mdaName}</h4><p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">{v.frfName}</p></div>
+                <div className="text-center bg-white/5 p-4 rounded-xl min-w-[80px] border border-white/5 print:bg-slate-50 print:border-slate-300"><p className="text-3xl font-black text-white print:text-slate-900">{new Date(v.date).getDate()}</p><p className="text-[9px] font-black text-slate-500 uppercase print:text-slate-600">{new Date(v.date).toLocaleString('default', { month: 'short' })}</p></div>
+                <div><h4 className="text-lg font-black text-white uppercase tracking-tight print:text-slate-900">{v.mdaName}</h4><p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest print:text-emerald-800">{v.frfName}</p></div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end gap-2"><Badge variant={v.hasIncident === 'Yes' ? 'error' : 'success'} size="sm">{v.hasIncident === 'Yes' ? 'Alert' : 'Secure'}</Badge>{v.incidentStatus && <Badge variant="info" size="sm" className="opacity-70">{v.incidentStatus}</Badge>}</div>
-                {(user?.role === 'ADMIN' || (user?.role === 'FRF' && v.frfId === user.id)) && (<button onClick={() => { setActiveEditRecord(v); setIsEditTicketModalOpen(true); }} className="p-4 bg-white/5 hover:bg-emerald-600 text-blue-400 hover:text-white rounded-2xl border border-white/5 shadow-xl transition-all"><FileEdit className="w-5 h-5" /></button>)}
+                {(user?.role === 'ADMIN' || (user?.role === 'FRF' && v.frfId === user.id)) && (<button onClick={() => { setActiveEditRecord(v); setIsEditTicketModalOpen(true); }} className="p-4 bg-white/5 hover:bg-emerald-600 text-blue-400 hover:text-white rounded-2xl border border-white/5 shadow-xl transition-all print:hidden"><FileEdit className="w-5 h-5" /></button>)}
               </div>
             </div>
           ))}
@@ -867,28 +879,50 @@ export function FRFSystem() {
     const [q5, setQ5] = useState<'Yes' | 'No'>('No');
     const [qHasRequest, setQHasRequest] = useState<'Yes' | 'No'>('No');
     const myMdas = mdas.filter(m => user?.assignedMdaIds.includes(m.id) && m.active);
+    
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget as HTMLFormElement);
         const mdaId = fd.get('mdaId') as string;
         const mda = mdas.find(m => m.id === mdaId);
+        const commentInput = (fd.get('comments') as string) || "";
+        
         setVisitations([...visitations, {
-            id: generateId(), frfId: user!.id, frfName: user!.name, date: fd.get('date') as string, timestamp: Date.now(), mdaId, mdaName: mda?.name || '',
-            wasVisited: q3, reasonNotVisited: q3 === 'No' ? reasonNotVisited : undefined, hasIncident: q5, hasRequest: qHasRequest, comments: fd.get('comments') as string || ''
+            id: generateId(), 
+            frfId: user!.id, 
+            frfName: user!.name, 
+            date: fd.get('date') as string, 
+            timestamp: Date.now(), 
+            mdaId, 
+            mdaName: mda?.name || '',
+            wasVisited: q3, 
+            reasonNotVisited: q3 === 'No' ? reasonNotVisited : undefined, 
+            hasIncident: q5, 
+            hasRequest: qHasRequest, 
+            comments: commentInput.trim() ? commentInput : "N/A"
         } as Visitation]);
         setActiveTab('history');
     };
+
     return (
         <div className="max-w-4xl mx-auto pb-20">
-            <CommandCard title="Intelligence Broadcast" icon={ClipboardCheck}>
-                <form onSubmit={handleSubmit} className="space-y-10">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8"><input name="date" type="date" required defaultValue={getTodayString()} className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-black text-white text-xs" /><select name="mdaId" required className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">SELECT HUB...</option>{myMdas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-                    <div className="space-y-6"><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4"><label className="text-[10px] font-black text-white uppercase">3. Was Hub Site Visited?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ3(o as any)} className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${q3 === o ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div>{q3 === 'No' && (<div className="p-6 bg-rose-600/5 border border-rose-500/20 rounded-2xl space-y-4 animate-in fade-in zoom-in-95 duration-300"><label className="text-[10px] font-black text-rose-400 uppercase">Reason for Non-Visitation</label><select value={reasonNotVisited} onChange={e => setReasonNotVisited(e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">SELECT REASON...</option>{REASONS_NOT_VISITED.map(r => <option key={r} value={r}>{r}</option>)}</select></div>)}</div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8"><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col gap-4"><label className="text-[10px] font-black text-white uppercase">5. Violation (Incident) Detected?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ5(o as any)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${q5 === o ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col gap-4"><label className="text-[10px] font-black text-white uppercase">Customer Request / Feedback?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQHasRequest(o as any)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${qHasRequest === o ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div></div>
-                    <textarea name="comments" required rows={4} className="w-full p-6 bg-white/5 border border-white/10 rounded-2xl font-bold text-white text-sm outline-none" placeholder="Provide tactical findings and site observations..." />
-                    <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500 transition-all">Broadcast Intelligence</button>
-                </form>
-            </CommandCard>
+            {myMdas.length === 0 ? (
+                <div className="bg-rose-500/10 p-12 rounded-[40px] border border-rose-500/20 text-center space-y-4">
+                  <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto" />
+                  <p className="text-rose-500 font-black uppercase text-xs tracking-widest">No Tactical Hubs Assigned</p>
+                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">Contact your supervisor to map authorized MDA nodes to your profile.</p>
+                </div>
+            ) : (
+                <CommandCard title="Intelligence Broadcast" icon={ClipboardCheck}>
+                    <form onSubmit={handleSubmit} className="space-y-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8"><input name="date" type="date" required defaultValue={getTodayString()} className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-black text-white text-xs" /><select name="mdaId" required className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">SELECT HUB...</option>{myMdas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+                        <div className="space-y-6"><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4"><label className="text-[10px] font-black text-white uppercase">3. Was Hub Site Visited?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ3(o as any)} className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${q3 === o ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div>{q3 === 'No' && (<div className="p-6 bg-rose-600/5 border border-rose-500/20 rounded-2xl space-y-4 animate-in fade-in zoom-in-95 duration-300"><label className="text-[10px] font-black text-rose-400 uppercase">Reason for Non-Visitation</label><select value={reasonNotVisited} onChange={e => setReasonNotVisited(e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">SELECT REASON...</option>{REASONS_NOT_VISITED.map(r => <option key={r} value={r}>{r}</option>)}</select></div>)}</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8"><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col gap-4"><label className="text-[10px] font-black text-white uppercase">5. Violation (Incident) Detected?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ5(o as any)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${q5 === o ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div><div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col gap-4"><label className="text-[10px] font-black text-white uppercase">Customer Request / Feedback?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQHasRequest(o as any)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${qHasRequest === o ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div></div></div>
+                        <textarea name="comments" rows={4} className="w-full p-6 bg-white/5 border border-white/10 rounded-2xl font-bold text-white text-sm outline-none focus:border-emerald-500" placeholder="Provide tactical findings and site observations..." />
+                        <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500 transition-all">Broadcast Intelligence</button>
+                    </form>
+                </CommandCard>
+            )}
         </div>
     );
   };
@@ -927,7 +961,7 @@ export function FRFSystem() {
             <StatPanel label="Authorized Nodes" value={mdas.length} icon={Building2} color="bg-emerald-600" />
             <StatPanel label="System Telemetry" value={stats.totalVisits} icon={History} color="bg-blue-600" />
             <StatPanel label="Critical Alerts" value={stats.incidents.total} icon={AlertTriangle} color="bg-rose-600" />
-            <StatPanel label="Personnel Force" value={users.length} icon={Users} color="bg-amber-500" />
+            <StatPanel label="Respondent Force" value={users.length} icon={Users} color="bg-amber-500" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <CommandCard title="Strategic Command Shortcuts" icon={Settings2}>
@@ -940,6 +974,7 @@ export function FRFSystem() {
             </CommandCard>
             <CommandCard title="Tactical Feed Summary" icon={ActivitySquare}>
                 <div className="space-y-3">
+                    {visitations.length === 0 && <p className="text-center py-10 text-slate-500 font-black text-[9px] uppercase tracking-widest">Awaiting First Deployment</p>}
                     {visitations.slice(-5).reverse().map(v => (
                         <div key={v.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-xl flex justify-between items-center"><div className="min-w-0"><p className="text-[10px] font-black text-white uppercase truncate">{v.mdaName}</p><p className="text-[8px] text-emerald-500 font-bold uppercase mt-0.5">{v.frfName}</p></div><Badge variant={v.hasIncident === 'Yes' ? 'error' : 'success'} size="sm">{v.hasIncident === 'Yes' ? 'Violation' : 'Secure'}</Badge></div>
                     ))}
@@ -954,8 +989,7 @@ export function FRFSystem() {
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-emerald-500/10 rounded-full blur-[150px] -mr-96 -mt-96" />
       <div className="relative z-10 max-w-4xl text-center space-y-12 animate-in fade-in duration-1000">
         <img src={LOGO_URL} className="h-16 mx-auto brightness-200 grayscale" />
-        <h1 className="text-7xl font-black tracking-tighter uppercase leading-none">Field Responder<br/><span className="text-emerald-500">Framework</span></h1>
-        <p className="text-xl text-slate-400 max-w-2xl mx-auto">Authorized Strategic Monitoring and Infrastructure Assurance Terminal.</p>
+        <h1 className="text-7xl font-black tracking-tighter uppercase leading-none">First Respondent<br/><span className="text-emerald-500">Framework</span></h1>
         <button onClick={() => setAppState('LOGIN')} className="px-12 py-6 bg-emerald-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-emerald-500 shadow-3xl flex items-center gap-4 mx-auto transition-all">Authenticate Entry <ArrowRight className="w-5 h-5" /></button>
       </div>
     </div>
@@ -964,7 +998,7 @@ export function FRFSystem() {
   if (appState === 'LOGIN') return (
     <div className="min-h-screen bg-[#010a06] flex items-center justify-center p-8">
       <div className="max-w-md w-full bg-[#011a0e] rounded-[60px] p-16 border border-white/10 text-center shadow-3xl animate-in slide-in-from-bottom-12 duration-700">
-        <h2 className="text-3xl font-black text-white mb-12 uppercase tracking-tight">Security Terminal</h2>
+        <h2 className="text-3xl font-black text-white mb-12 uppercase tracking-tight">LOGIN</h2>
         <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.currentTarget); handleLogin(fd.get('email') as string, fd.get('password') as string); }} className="space-y-6">
           <input name="email" type="email" placeholder="Official GBB Email" className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500" required />
           <input name="password" type="password" placeholder="Passphrase" className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500" required />
@@ -980,7 +1014,7 @@ export function FRFSystem() {
       <main className="flex-1 lg:ml-[280px] p-10 lg:p-16 w-full max-w-[1600px] mx-auto min-w-0 print:ml-0 print:p-0 print:bg-white print:text-black">
         <header className="flex flex-col sm:flex-row justify-between items-center mb-16 gap-8 border-b border-white/5 pb-16 print:hidden">
           <div><h1 className="text-6xl font-black text-white tracking-tighter uppercase leading-none truncate">{activeTab.replace(/_/g, ' ')}</h1></div>
-          <div className="text-right"><p className="text-xl font-black text-white uppercase leading-tight">{user?.name}</p><p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest opacity-80">{user?.role}</p></div>
+          <div className="text-right"><p className="text-xl font-black text-white uppercase leading-tight">{user?.name}</p><p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest opacity-80">{user?.role === 'FRF' ? 'First Respondent' : user?.role}</p></div>
         </header>
         <div className="pb-24">
           {activeTab === 'dashboard' && <AdminDashboard />}
@@ -992,7 +1026,6 @@ export function FRFSystem() {
         </div>
       </main>
 
-      {/* Modals */}
       <Modal isOpen={isEditTicketModalOpen} onClose={() => setIsEditTicketModalOpen(false)} title="Intelligence Sync">
           <form onSubmit={handleUpdateTickets} className="p-10 space-y-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1015,8 +1048,8 @@ export function FRFSystem() {
           <form onSubmit={handleSaveUser} className="p-10 space-y-8">
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Personnel Name</label><input name="name" defaultValue={mgmtUser?.name} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Secure Email</label><input name="email" type="email" defaultValue={mgmtUser?.email} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Passphrase (Password)</label><input name="password" type="text" placeholder={mgmtUser ? "Enter new or leave for current" : "Define Access Key"} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Role</label><select name="role" defaultValue={mgmtUser?.role || 'FRF'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="FRF">FIELD RESPONDER (FRF)</option><option value="ADMIN">SUPERVISOR (ADMIN)</option><option value="HEAD_OF_CSS">SECTOR HEAD (CSS)</option></select></div>
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Passphrase</label><input name="password" type="text" placeholder={mgmtUser ? "Enter new or leave for current" : "Define Access Key"} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Role</label><select name="role" defaultValue={mgmtUser?.role || 'FRF'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="FRF">FIRST RESPONDENT (FRF)</option><option value="ADMIN">SUPERVISOR (ADMIN)</option><option value="HEAD_OF_CSS">SECTOR HEAD (CSS)</option></select></div>
               <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Provision Records</button>
           </form>
       </Modal>
@@ -1035,6 +1068,7 @@ export function FRFSystem() {
       <Modal isOpen={isAssignMdaOpen} onClose={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} title={`Tactical Node Mapping: ${mgmtUser?.name}`}>
           <div className="p-10 space-y-6">
               <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                  {mdas.length === 0 && <p className="text-center py-10 text-slate-500 font-black text-[10px] uppercase">No Hubs Provisioned Yet</p>}
                   {mdas.map(m => (
                       <div key={m.id} onClick={() => mgmtUser && handleToggleMdaAssign(mgmtUser.id, m.id)} className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${mgmtUser?.assignedMdaIds.includes(m.id) ? 'bg-emerald-600/20 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}><div><p className={`text-[11px] font-black uppercase truncate ${mgmtUser?.assignedMdaIds.includes(m.id) ? 'text-emerald-400' : 'text-white'}`}>{m.name}</p></div>{mgmtUser?.assignedMdaIds.includes(m.id) ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Plus className="w-4 h-4 text-slate-700" />}</div>
                   ))}
