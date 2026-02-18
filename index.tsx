@@ -172,10 +172,12 @@ const INITIAL_MDAS: MDA[] = [
   { id: 'mda-57', name: 'NIGERIAN LAW REFORM COMMISSION', category: 'Commission', active: true },
 ];
 
-// SYSTEM RESET: Maintained only essential access for system setup
+// SYSTEM RESET: Initializing with specific personnel as requested
 const INITIAL_USERS: User[] = [
   { id: 'u1', name: 'Strategic Administrator', email: 'admin@gbb.com.ng', password: 'admin123', role: 'ADMIN', assignedMdaIds: [] },
-  { id: 'u4', name: 'Head of CSS', email: 'css@gbb.com.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] }
+  { id: 'u4', name: 'Head of CSS', email: 'css@gbb.com.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] },
+  { id: 'u5', name: 'Asmau Alkali', email: 'asmau.alkali@galaxybackbone.com.ng', password: 'frf123', role: 'FRF', assignedMdaIds: ['mda-01', 'mda-05', 'mda-10'] },
+  { id: 'u6', name: 'Muhammad Bello', email: 'Muhammad.bello2@galaxybackbone.com.ng', password: 'frf123', role: 'FRF', assignedMdaIds: ['mda-02', 'mda-08', 'mda-15'] }
 ];
 
 // --- Utils ---
@@ -275,10 +277,10 @@ export function FRFSystem() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // SYSTEM RESET: Initializing with the expanded official MDA dataset (v3 Synchronization)
-  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v3') || JSON.stringify(INITIAL_MDAS)));
-  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v3') || JSON.stringify(INITIAL_USERS)));
-  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v3') || "[]"));
+  // SYSTEM RESET: Initializing with the expanded official MDA dataset (v4 Synchronization)
+  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v4') || JSON.stringify(INITIAL_MDAS)));
+  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v4') || JSON.stringify(INITIAL_USERS)));
+  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v4') || "[]"));
 
   const [isEditTicketModalOpen, setIsEditTicketModalOpen] = useState(false);
   const [activeEditRecord, setActiveEditRecord] = useState<Visitation | null>(null);
@@ -300,9 +302,9 @@ export function FRFSystem() {
   const [mdaAssignStatus, setMdaAssignStatus] = useState('ALL');
 
   useEffect(() => {
-    localStorage.setItem('gbb_mdas_v3', JSON.stringify(mdas));
-    localStorage.setItem('gbb_users_v3', JSON.stringify(users));
-    localStorage.setItem('gbb_visitations_v3', JSON.stringify(visitations));
+    localStorage.setItem('gbb_mdas_v4', JSON.stringify(mdas));
+    localStorage.setItem('gbb_users_v4', JSON.stringify(users));
+    localStorage.setItem('gbb_visitations_v4', JSON.stringify(visitations));
   }, [mdas, users, visitations]);
 
   const stats = useMemo(() => {
@@ -310,12 +312,23 @@ export function FRFSystem() {
     const dataSet = isFRF ? visitations.filter(v => v.frfId === user.id) : visitations;
     const totalIncidents = dataSet.filter(v => v.hasIncident === 'Yes').length;
     const resolvedIncidents = dataSet.filter(v => v.incidentStatus === 'YES RESOLVED').length;
+    
+    // CALIBRATION: Ensure only FRF role is counted as respondent
+    const frfPersonnel = users.filter(u => u.role === 'FRF');
+    const activeFrfIds = new Set(visitations.map(v => v.frfId));
+    const activeFrfsCount = Array.from(activeFrfIds).filter(id => users.find(u => u.id === id)?.role === 'FRF').length;
+
     return {
       totalMdas: isFRF ? user.assignedMdaIds.length : mdas.length,
       totalVisits: dataSet.length,
       incidents: { total: totalIncidents, resolved: resolvedIncidents, rate: totalIncidents > 0 ? Math.round((resolvedIncidents / totalIncidents) * 100) : 100 },
-      activeFrfs: new Set(visitations.map(v => v.frfId)).size,
-      frfLeaderboard: users.filter(u => u.role === 'FRF').map(frf => ({ name: frf.name, id: frf.id, count: visitations.filter(v => v.frfId === frf.id).length })).sort((a, b) => b.count - a.count)
+      totalFrfs: frfPersonnel.length,
+      activeFrfs: activeFrfsCount,
+      frfLeaderboard: frfPersonnel.map(frf => ({ 
+        name: frf.name, 
+        id: frf.id, 
+        count: visitations.filter(v => v.frfId === frf.id).length 
+      })).sort((a, b) => b.count - a.count)
     };
   }, [mdas, visitations, user, users]);
 
@@ -1040,7 +1053,7 @@ export function FRFSystem() {
             <StatPanel label="Authorized Nodes" value={mdas.length} icon={Building2} color="bg-emerald-600" />
             <StatPanel label="System Telemetry" value={stats.totalVisits} icon={History} color="bg-blue-600" />
             <StatPanel label="Critical Alerts" value={stats.incidents.total} icon={AlertTriangle} color="bg-rose-600" />
-            <StatPanel label="Respondent Force" value={users.length} icon={Users} color="bg-amber-500" />
+            <StatPanel label="Respondent Force" value={stats.totalFrfs} icon={Users} color="bg-amber-500" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <CommandCard title="Strategic Command Shortcuts" icon={Settings2}>
@@ -1079,20 +1092,20 @@ export function FRFSystem() {
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[120px] -mr-64 -mt-64" />
       <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[120px] -ml-64 -mb-64" />
       
-      <div className="max-w-md w-full z-10 space-y-8 animate-in slide-in-from-bottom-12 duration-700">
-        <div className="bg-[#011a0e] rounded-[60px] p-16 border border-white/10 text-center shadow-3xl">
-          <div className="w-20 h-20 bg-emerald-600/10 border border-emerald-500/20 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-inner">
-            <Fingerprint className="w-10 h-10 text-emerald-500" />
+      <div className="max-w-md w-full z-10 space-y-6 animate-in slide-in-from-bottom-12 duration-700">
+        <div className="bg-[#011a0e] rounded-[60px] p-12 border border-white/10 text-center shadow-3xl">
+          <div className="w-16 h-16 bg-emerald-600/10 border border-emerald-500/20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <Fingerprint className="w-8 h-8 text-emerald-500" />
           </div>
-          <h2 className="text-3xl font-black text-white mb-12 uppercase tracking-tight">Personnel Authentication</h2>
-          <form onSubmit={e => { e.preventDefault(); handleLogin(loginEmail, loginPassword); }} className="space-y-6">
+          <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Personnel Authentication</h2>
+          <form onSubmit={e => { e.preventDefault(); handleLogin(loginEmail, loginPassword); }} className="space-y-4">
             <input 
               value={loginEmail}
               onChange={e => setLoginEmail(e.target.value)}
               name="email" 
               type="email" 
-              placeholder="Official GBB Email" 
-              className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all" 
+              placeholder="Official Email" 
+              className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" 
               required 
             />
             <input 
@@ -1101,39 +1114,35 @@ export function FRFSystem() {
               name="password" 
               type="password" 
               placeholder="Password" 
-              className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all" 
+              className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" 
               required 
             />
-            <button className="w-full bg-emerald-600 py-6 rounded-3xl font-black text-white uppercase tracking-widest text-xs shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Authorize Entry</button>
+            <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Authorize Entry</button>
           </form>
         </div>
 
         {/* Tactical Credentials Display */}
-        <div className="bg-black/40 backdrop-blur-md rounded-[40px] p-8 border border-white/5 space-y-6">
-          <div className="flex items-center justify-center gap-3">
-            <div className="h-px bg-white/10 flex-1" />
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Strategic Access Codes</p>
-            <div className="h-px bg-white/10 flex-1" />
+        <div className="bg-black/40 backdrop-blur-md rounded-[32px] p-6 border border-white/5 space-y-4">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] text-center mb-4">Strategic Profiles</p>
+          <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+            {users.map(u => (
+              <button 
+                key={u.id}
+                onClick={() => { setLoginEmail(u.email); setLoginPassword(u.password || 'frf123'); }}
+                className={`p-4 rounded-2xl border text-left transition-all group flex items-center gap-4 ${u.role === 'ADMIN' ? 'bg-rose-600/5 border-rose-500/10 hover:bg-rose-600/10' : u.role === 'HEAD_OF_CSS' ? 'bg-blue-600/5 border-blue-500/10 hover:bg-blue-600/10' : 'bg-emerald-600/5 border-emerald-500/10 hover:bg-emerald-600/10'}`}
+              >
+                <div className="p-2 bg-white/5 rounded-lg shrink-0">
+                  {u.role === 'ADMIN' ? <ShieldAlert className="w-3.5 h-3.5 text-rose-500" /> : u.role === 'HEAD_OF_CSS' ? <MonitorCheck className="w-3.5 h-3.5 text-blue-500" /> : <Users className="w-3.5 h-3.5 text-emerald-500" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{u.role === 'FRF' ? 'RESPONDENT' : u.role}</p>
+                  <p className="text-[10px] font-black text-white truncate">{u.name}</p>
+                  <p className="text-[7px] font-bold text-slate-600 truncate">{u.email}</p>
+                </div>
+              </button>
+            ))}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <button 
-              onClick={() => { setLoginEmail('admin@gbb.com.ng'); setLoginPassword('admin123'); }}
-              className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl hover:bg-emerald-600/10 hover:border-emerald-500/30 transition-all group text-left"
-            >
-              <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-1 group-hover:text-emerald-400">ADMINISTRATOR</p>
-              <p className="text-[11px] font-bold text-white truncate opacity-80">admin@gbb.com.ng</p>
-              <p className="text-[8px] font-black text-slate-600 mt-2 uppercase tracking-tighter">KEY: admin123</p>
-            </button>
-            <button 
-              onClick={() => { setLoginEmail('css@gbb.com.ng'); setLoginPassword('css123'); }}
-              className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl hover:bg-blue-600/10 hover:border-blue-500/30 transition-all group text-left"
-            >
-              <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1 group-hover:text-blue-400">SECTOR HEAD</p>
-              <p className="text-[11px] font-bold text-white truncate opacity-80">css@gbb.com.ng</p>
-              <p className="text-[8px] font-black text-slate-600 mt-2 uppercase tracking-tighter">KEY: css123</p>
-            </button>
-          </div>
-          <p className="text-[8px] font-black text-slate-600 uppercase text-center tracking-[0.2em] animate-pulse italic">Click a profile node to auto-populate the terminal</p>
+          <p className="text-[7px] font-black text-slate-600 uppercase text-center tracking-[0.2em] animate-pulse">Select node to bypass entry encryption</p>
         </div>
       </div>
     </div>
@@ -1157,6 +1166,7 @@ export function FRFSystem() {
         </div>
       </main>
 
+      {/* Modals & Editors */}
       <Modal isOpen={isEditTicketModalOpen} onClose={() => setIsEditTicketModalOpen(false)} title="Intelligence Sync">
           <form onSubmit={handleUpdateTickets} className="p-10 space-y-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
