@@ -563,30 +563,47 @@ export function FRFSystem() {
     const [endDate, setEndDate] = useState(getTodayString());
     const [reportMode, setReportMode] = useState<'PERSONNEL' | 'MASTER' | 'WEEKLY'>('WEEKLY');
     const [isExporting, setIsExporting] = useState(false);
+    
+    // New filtering state
+    const [mdaFilter, setMdaFilter] = useState('ALL');
+    const [personnelFilter, setPersonnelFilter] = useState('ALL');
 
     const audit = useMemo(() => {
-        const filtered = visitations.filter(v => v.date >= startDate && v.date <= endDate);
+        let filtered = visitations.filter(v => v.date >= startDate && v.date <= endDate);
+        
+        // Apply personnel filter
+        if (personnelFilter !== 'ALL') {
+            filtered = filtered.filter(v => v.frfId === personnelFilter);
+        }
+
+        // Apply MDA Category filter
+        const relevantMdas = mdaFilter === 'ALL' 
+            ? mdas 
+            : mdas.filter(m => m.category === mdaFilter);
+        const relevantMdaIds = new Set(relevantMdas.map(m => m.id));
+        
+        // Filter actual response data by relevant MDAs
+        filtered = filtered.filter(v => relevantMdaIds.has(v.mdaId));
+
         const visited = filtered.filter(v => v.wasVisited === 'Yes');
-        const notVisited = filtered.filter(v => v.wasVisited === 'No');
         const incidents = filtered.filter(v => v.hasIncident === 'Yes');
         const incidentResolved = incidents.filter(v => v.incidentStatus === 'YES RESOLVED');
         const incidentPending = incidents.filter(v => v.incidentStatus !== 'YES RESOLVED');
 
         return {
-            totalMdas: mdas.length,
+            totalMdas: relevantMdas.length,
             visitedMdasCount: new Set(visited.map(v => v.mdaId)).size,
-            notVisitedMdasCount: mdas.length - new Set(visited.map(v => v.mdaId)).size,
+            notVisitedMdasCount: relevantMdas.length - new Set(visited.map(v => v.mdaId)).size,
             incidentsReceived: incidents.length,
             incidentsResolved: incidentResolved.length,
             incidentsPending: incidentPending.length,
             totalResponses: filtered.length,
             actualData: filtered
         };
-    }, [visitations, mdas, startDate, endDate]);
+    }, [visitations, mdas, startDate, endDate, mdaFilter, personnelFilter]);
 
     const handleExportPDF = () => {
       setIsExporting(true);
-      // Small timeout to allow state to settle if needed, then print.
       setTimeout(() => {
         window.print();
         setIsExporting(false);
@@ -624,16 +641,47 @@ export function FRFSystem() {
                         <MonitorCheck className="w-3.5 h-3.5" /> Analytical Command Center
                     </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-4 relative z-10">
-                  <DateRangePicker start={startDate} end={endDate} onStartChange={setStartDate} onEndChange={setEndDate} />
-                  <button 
-                    onClick={handleExportPDF} 
-                    disabled={isExporting}
-                    className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 hover:bg-emerald-500 transition-all shadow-2xl disabled:opacity-50"
-                  >
-                    {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                    Export Strategic Report
-                  </button>
+                <div className="flex flex-col gap-4 relative z-10 w-full lg:w-auto">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <DateRangePicker start={startDate} end={endDate} onStartChange={setStartDate} onEndChange={setEndDate} />
+                    <button 
+                      onClick={handleExportPDF} 
+                      disabled={isExporting}
+                      className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 hover:bg-emerald-500 transition-all shadow-2xl disabled:opacity-50"
+                    >
+                      {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      Export Strategic Report
+                    </button>
+                  </div>
+                  
+                  {/* Strategic Filters */}
+                  <div className="flex flex-col sm:flex-row gap-3 p-2 bg-black/40 rounded-[24px] border border-white/10 shadow-inner no-print">
+                      <div className="flex-1 flex items-center gap-2 bg-white/[0.03] px-4 py-2.5 rounded-2xl border border-white/5">
+                        <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                        <div className="flex flex-col flex-1">
+                          <span className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em]">Sector Matrix</span>
+                          <select value={mdaFilter} onChange={e => setMdaFilter(e.target.value)} className="bg-transparent border-none text-[10px] font-black text-white outline-none cursor-pointer w-full uppercase">
+                            <option value="ALL">All Hub Categories</option>
+                            <option value="Ministry">Ministries</option>
+                            <option value="Agency">Agencies</option>
+                            <option value="Corporation">Corporations</option>
+                            <option value="Commission">Commissions</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex-1 flex items-center gap-2 bg-white/[0.03] px-4 py-2.5 rounded-2xl border border-white/5">
+                        <Users className="w-3.5 h-3.5 text-emerald-500" />
+                        <div className="flex flex-col flex-1">
+                          <span className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em]">Field Personnel</span>
+                          <select value={personnelFilter} onChange={e => setPersonnelFilter(e.target.value)} className="bg-transparent border-none text-[10px] font-black text-white outline-none cursor-pointer w-full uppercase">
+                            <option value="ALL">All Personnel</option>
+                            {users.filter(u => u.role === 'FRF').map(u => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                  </div>
                 </div>
             </div>
 
@@ -646,10 +694,10 @@ export function FRFSystem() {
             <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500 print:space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:grid-cols-2 print:gap-4">
                 <div className="print-break-inside-avoid">
-                  <CommandCard title="Performance Metrics" icon={Trophy}>
+                  <CommandCard title="Performance Metrics" subtitle={`${mdaFilter === 'ALL' ? 'Across All Sectors' : `${mdaFilter} Sector Only`}`} icon={Trophy}>
                     <div className="space-y-4">
                       {[
-                        { label: "Total Network Nodes", val: audit.totalMdas },
+                        { label: `Total Targeted Nodes (${mdaFilter})`, val: audit.totalMdas },
                         { label: "Nodes Verified (Visited)", val: audit.visitedMdasCount, color: "text-emerald-400" },
                         { label: "Nodes Unreachable", val: audit.notVisitedMdasCount, color: "text-rose-400" },
                         { label: "Total Operational Responses", val: audit.totalResponses },
@@ -663,7 +711,7 @@ export function FRFSystem() {
                   </CommandCard>
                 </div>
                 <div className="print-break-inside-avoid">
-                  <CommandCard title="Violation Log" icon={AlertOctagon}>
+                  <CommandCard title="Violation Log" subtitle={`${personnelFilter === 'ALL' ? 'Global Personnel Stream' : 'Selected Personnel Stream'}`} icon={AlertOctagon}>
                     <div className="space-y-4">
                       {[
                         { label: "Incidents Received", val: audit.incidentsReceived, color: "text-rose-500" },
@@ -868,8 +916,8 @@ export function FRFSystem() {
                             <div className="space-y-4">
                                 <label className="text-[9px] font-black text-slate-500 uppercase">4. Operational Duration</label>
                                 <div className="flex gap-4">
-                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.startTime} onChange={e => updateField('startTime', e.target.value)} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
-                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.endTime} onChange={e => updateField('endTime', e.target.value)} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.startTime} onChange={updateField && (e => updateField('startTime', e.target.value))} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.endTime} onChange={updateField && (e => updateField('endTime', e.target.value))} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
                                 </div>
                             </div>
                         </div>
@@ -1030,7 +1078,7 @@ export function FRFSystem() {
       <div className="relative z-10 max-w-4xl text-center space-y-12 animate-in fade-in duration-1000">
         <img src={LOGO_URL} className="h-16 mx-auto brightness-200 grayscale" />
         <h1 className="text-7xl font-black tracking-tighter uppercase leading-none">First Respondent<br/><span className="text-emerald-500">Framework</span></h1>
-        <button onClick={() => setAppState('LOGIN')} className="px-12 py-6 bg-emerald-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-emerald-500 shadow-3xl flex items-center gap-4 mx-auto transition-all">Authenticate Entry <ArrowRight className="w-5 h-5" /></button>
+        <button onClick={() => setAppState('LOGIN')} className="px-12 py-6 bg-emerald-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-emerald-500 shadow-3xl flex items-center gap-4 mx-auto transition-all">Login <ArrowRight className="w-5 h-5" /></button>
       </div>
     </div>
   );
@@ -1040,11 +1088,11 @@ export function FRFSystem() {
       <div className="max-w-md w-full z-10 space-y-6 animate-in slide-in-from-bottom-12 duration-700">
         <div className="bg-[#011a0e] rounded-[60px] p-12 border border-white/10 text-center shadow-3xl">
           <div className="w-16 h-16 bg-emerald-600/10 border border-emerald-500/20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner"><Fingerprint className="w-8 h-8 text-emerald-500" /></div>
-          <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Personnel Authentication</h2>
+          <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Enter your login details</h2>
           <form onSubmit={e => { e.preventDefault(); handleLogin(loginEmail, loginPassword); }} className="space-y-4">
-            <input value={loginEmail} onChange={e => setLoginEmail(e.target.value)} name="email" type="email" placeholder="Official Email" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
+            <input value={loginEmail} onChange={e => setLoginEmail(e.target.value)} name="email" type="email" placeholder="Enter your GBB email" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
             <input value={loginPassword} onChange={e => setLoginPassword(e.target.value)} name="password" type="password" placeholder="Password" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
-            <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Authorize Entry</button>
+            <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Login</button>
           </form>
         </div>
       </div>
