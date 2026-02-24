@@ -777,8 +777,8 @@ export function FRFSystem() {
     return (
       <div className="space-y-6 animate-in fade-in duration-700">
         <div className="flex flex-col md:flex-row justify-between items-center bg-[#011a0e] p-8 rounded-[40px] border border-white/5 gap-4">
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Tactical Vault</h2>
-            <div className="relative w-full md:w-[300px] no-print"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search Archive..." className="w-full pl-12 pr-6 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-[11px] uppercase outline-none" /></div>
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Report History</h2>
+            <div className="relative w-full md:w-[300px] no-print"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search Report History..." className="w-full pl-12 pr-6 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-[11px] uppercase outline-none" /></div>
         </div>
         <div className="space-y-4">
           {filteredData.length === 0 && <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[40px] text-slate-500 font-black uppercase text-xs tracking-widest">No Strategic Records Found</div>}
@@ -989,7 +989,7 @@ export function FRFSystem() {
       <div className={`w-[280px] bg-[#011a0e] h-screen flex flex-col fixed left-0 top-0 border-r border-white/5 shadow-3xl z-[55] transition-transform lg:translate-x-0 no-print ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-8"><img src={LOGO_URL} className="w-full brightness-200 grayscale h-12 object-contain" /></div>
         <nav className="flex-1 px-6 space-y-3 overflow-y-auto custom-scrollbar">
-          <NavItem icon={LayoutDashboard} label="Dashboard / Home" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} />
+          <NavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} />
           {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
             <>
               <div className="h-px bg-white/5 mx-4 my-2" />
@@ -999,8 +999,8 @@ export function FRFSystem() {
             </>
           )}
           <div className="h-px bg-white/5 mx-4 my-2" />
-          {user?.role === 'FRF' && <NavItem icon={Plus} label="New Deployment" active={activeTab === 'submit'} onClick={() => {setActiveTab('submit'); setIsSidebarOpen(false);}} />}
-          <NavItem icon={History} label="Strategic Archive" active={activeTab === 'history'} onClick={() => {setActiveTab('history'); setIsSidebarOpen(false);}} />
+          {user?.role === 'FRF' && <NavItem icon={Plus} label="New Report" active={activeTab === 'submit'} onClick={() => {setActiveTab('submit'); setIsSidebarOpen(false);}} />}
+          <NavItem icon={History} label="Report History" active={activeTab === 'history'} onClick={() => {setActiveTab('history'); setIsSidebarOpen(false);}} />
         </nav>
         <div className="p-6 mt-auto"><button onClick={handleLogout} className="w-full py-4 bg-rose-600/10 text-rose-500 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 border border-rose-500/20 hover:bg-rose-600 transition-all"><LogOut className="w-4 h-4" /> Shutdown Session</button></div>
       </div>
@@ -1044,12 +1044,12 @@ export function FRFSystem() {
                               <button onClick={() => setActiveTab('mdas')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Building2 className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Nodes Matrix</span></button>
                               <button onClick={() => setActiveTab('users')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><Users className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Personnel Registry</span></button>
                               <button onClick={() => setActiveTab('reports')} className="p-6 bg-amber-600/10 border border-amber-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-amber-600 hover:text-white transition-all group shadow-sm"><PieChart className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Intelligence Hub</span></button>
-                              <button onClick={() => setActiveTab('history')} className="p-6 bg-rose-600/10 border border-rose-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-rose-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Tactical Vault</span></button>
+                              <button onClick={() => setActiveTab('history')} className="p-6 bg-rose-600/10 border border-rose-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-rose-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Report History</span></button>
                           </>
                       ) : (
                           <>
-                              <button onClick={() => setActiveTab('submit')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Plus className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Initiate Deployment</span></button>
-                              <button onClick={() => setActiveTab('history')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Review Archive</span></button>
+                              <button onClick={() => setActiveTab('submit')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Plus className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">New Report</span></button>
+                              <button onClick={() => setActiveTab('history')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Report History</span></button>
                           </>
                       )}
                   </div>
@@ -1104,7 +1104,7 @@ export function FRFSystem() {
       <Sidebar />
       <main className="flex-1 lg:ml-[280px] p-10 lg:p-16 w-full max-w-[1600px] mx-auto min-w-0 print:ml-0 print:p-0 print:bg-white print:text-black">
         <header className="flex flex-col sm:flex-row justify-between items-center mb-16 gap-8 border-b border-white/5 pb-16 print:hidden">
-          <div><h1 className="text-6xl font-black text-white tracking-tighter uppercase leading-none truncate">{activeTab === 'dashboard' ? 'DASHBOARD / HOME' : activeTab.replace(/_/g, ' ')}</h1></div>
+          <div><h1 className="text-6xl font-black text-white tracking-tighter uppercase leading-none truncate">{activeTab === 'dashboard' ? 'DASHBOARD' : activeTab.replace(/_/g, ' ')}</h1></div>
           <div className="text-right"><p className="text-xl font-black text-white uppercase leading-tight">{user?.name}</p><p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest opacity-80">{user?.role === 'FRF' ? 'First Respondent' : user?.role}</p></div>
         </header>
         <div className="pb-24">
