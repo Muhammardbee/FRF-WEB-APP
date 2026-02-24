@@ -916,8 +916,8 @@ export function FRFSystem() {
                             <div className="space-y-4">
                                 <label className="text-[9px] font-black text-slate-500 uppercase">4. Operational Duration</label>
                                 <div className="flex gap-4">
-                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.startTime} onChange={updateField && (e => updateField('startTime', e.target.value))} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
-                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.endTime} onChange={updateField && (e => updateField('endTime', e.target.value))} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.startTime} onChange={e => updateField('startTime', e.target.value)} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.endTime} onChange={e => updateField('endTime', e.target.value)} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
                                 </div>
                             </div>
                         </div>
@@ -989,7 +989,7 @@ export function FRFSystem() {
       <div className={`w-[280px] bg-[#011a0e] h-screen flex flex-col fixed left-0 top-0 border-r border-white/5 shadow-3xl z-[55] transition-transform lg:translate-x-0 no-print ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-8"><img src={LOGO_URL} className="w-full brightness-200 grayscale h-12 object-contain" /></div>
         <nav className="flex-1 px-6 space-y-3 overflow-y-auto custom-scrollbar">
-          <NavItem icon={LayoutDashboard} label="Mission Control" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} />
+          <NavItem icon={LayoutDashboard} label="Dashboard / Home" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} />
           {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
             <>
               <div className="h-px bg-white/5 mx-4 my-2" />
@@ -1028,9 +1028,9 @@ export function FRFSystem() {
                 </>
               ) : (
                 <>
-                  <StatPanel label="My Tactical Hubs" value={user?.assignedMdaIds.length || 0} icon={Building2} color="bg-emerald-600" />
-                  <StatPanel label="My Deployments" value={stats.totalVisits} icon={History} color="bg-blue-600" />
-                  <StatPanel label="Active Field Alerts" value={stats.activeIncidents} icon={AlertTriangle} color="bg-rose-600" />
+                  <StatPanel label="MDAs" value={user?.assignedMdaIds.length || 0} icon={Building2} color="bg-emerald-600" />
+                  <StatPanel label="My Report" value={stats.totalVisits} icon={History} color="bg-blue-600" />
+                  <StatPanel label="Incident and Request" value={stats.activeIncidents} icon={AlertTriangle} color="bg-rose-600" />
                   <StatPanel label="Success Rate" value={`${stats.incidents.rate}%`} icon={CheckCircle2} color="bg-amber-500" />
                 </>
               )}
@@ -1104,7 +1104,7 @@ export function FRFSystem() {
       <Sidebar />
       <main className="flex-1 lg:ml-[280px] p-10 lg:p-16 w-full max-w-[1600px] mx-auto min-w-0 print:ml-0 print:p-0 print:bg-white print:text-black">
         <header className="flex flex-col sm:flex-row justify-between items-center mb-16 gap-8 border-b border-white/5 pb-16 print:hidden">
-          <div><h1 className="text-6xl font-black text-white tracking-tighter uppercase leading-none truncate">{activeTab.replace(/_/g, ' ')}</h1></div>
+          <div><h1 className="text-6xl font-black text-white tracking-tighter uppercase leading-none truncate">{activeTab === 'dashboard' ? 'DASHBOARD / HOME' : activeTab.replace(/_/g, ' ')}</h1></div>
           <div className="text-right"><p className="text-xl font-black text-white uppercase leading-tight">{user?.name}</p><p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest opacity-80">{user?.role === 'FRF' ? 'First Respondent' : user?.role}</p></div>
         </header>
         <div className="pb-24">
