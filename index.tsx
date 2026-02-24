@@ -242,7 +242,7 @@ const Badge = ({ children, variant, size = "md", className = "" }: { children?: 
 };
 
 const CommandCard = ({ title, subtitle, children, icon: Icon, className = "" }: { title?: string, subtitle?: string, children?: React.ReactNode, icon?: any, className?: string }) => (
-  <div className={`bg-[#011a0e]/60 backdrop-blur-xl border border-white/5 rounded-2xl md:rounded-3xl overflow-hidden group shadow-2xl transition-all duration-500 hover:border-emerald-500/30 print:bg-white print:border-slate-200 print:shadow-none ${className}`}>
+  <div className={`bg-[#011a0e]/60 backdrop-blur-xl border border-white/5 rounded-2xl md:rounded-3xl overflow-hidden group shadow-2xl transition-all duration-500 hover:border-emerald-500/30 print:bg-white print:border-slate-200 print:shadow-none print:print-shadow ${className}`}>
     {(title || subtitle) && (
       <div className="p-4 md:p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02] print:bg-slate-50 print:border-slate-200">
         <div className="min-w-0 pr-2">
@@ -257,10 +257,10 @@ const CommandCard = ({ title, subtitle, children, icon: Icon, className = "" }: 
 );
 
 const StatPanel = ({ label, value, icon: Icon, color }: { label: string, value: string | number, icon: any, color: string }) => (
-  <div className="bg-[#011a0e] p-5 md:p-8 rounded-[24px] md:rounded-[40px] border border-white/5 shadow-2xl relative overflow-hidden group hover:-translate-y-1 transition-all duration-500 print:bg-white print:border-slate-300 print:shadow-none">
+  <div className="bg-[#011a0e] p-5 md:p-8 rounded-[24px] md:rounded-[40px] border border-white/5 shadow-2xl relative overflow-hidden group hover:-translate-y-1 transition-all duration-500 print:bg-white print:border-slate-300 print:shadow-none print:print-shadow">
     <div className={`absolute top-0 right-0 w-32 h-32 ${color} opacity-[0.05] rounded-full -mr-16 -mt-16 blur-3xl group-hover:scale-150 transition-transform duration-1000 print:hidden`} />
     <div className="relative z-10 flex flex-col gap-3 md:gap-4">
-      <div className={`w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-2xl ${color} flex items-center justify-center text-white shadow-xl group-hover:rotate-12 transition-transform print:shadow-none`}>
+      <div className={`w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-2xl ${color} flex items-center justify-center text-white shadow-xl group-hover:rotate-12 transition-transform print:shadow-none print:bg-slate-100 print:text-slate-900`}>
         <Icon className="w-4 h-4 md:w-6 md:h-6" />
       </div>
       <div className="space-y-1">
@@ -274,7 +274,7 @@ const StatPanel = ({ label, value, icon: Icon, color }: { label: string, value: 
 const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean, onClose: () => void, title: string, children?: React.ReactNode }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 no-print">
       <div className="absolute inset-0 bg-[#011a0e]/95 backdrop-blur-md" onClick={onClose} />
       <div className="relative bg-[#022a18] w-full max-w-2xl rounded-2xl md:rounded-[40px] shadow-3xl border border-white/10 overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="flex items-center justify-between px-6 py-5 md:px-10 md:py-8 border-b border-white/5 bg-white/[0.02]">
@@ -310,8 +310,11 @@ const DateRangePicker = ({ start, end, onStartChange, onEndChange, labelStart = 
 // --- Main Engine ---
 
 export function FRFSystem() {
-  const [user, setUser] = useState<User | null>(null);
-  const [appState, setAppState] = useState<'LANDING' | 'LOGIN' | 'APP'>('LANDING');
+  const [user, setUser] = useState<User | null>(() => {
+    const saved = sessionStorage.getItem('gbb_active_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [appState, setAppState] = useState<'LANDING' | 'LOGIN' | 'APP'>(user ? 'APP' : 'LANDING');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -372,27 +375,40 @@ export function FRFSystem() {
     const found = users.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password || 'admin123') === pass);
     if (found) { 
       setUser(found); 
+      sessionStorage.setItem('gbb_active_user', JSON.stringify(found));
       setAppState('APP'); 
-      if (found.role === 'HEAD_OF_CSS' || found.role === 'ADMIN') setActiveTab('dashboard');
-      else setActiveTab('dashboard'); 
+      setActiveTab('dashboard'); 
     }
     else { alert("Tactical Error: Invalid Credentials or Unauthorized Access."); }
   };
 
-  const handleLogout = () => { setUser(null); setAppState('LANDING'); setLoginEmail(''); setLoginPassword(''); };
+  const handleLogout = () => { 
+    setUser(null); 
+    sessionStorage.removeItem('gbb_active_user');
+    setAppState('LANDING'); 
+    setLoginEmail(''); 
+    setLoginPassword(''); 
+  };
 
   const handleUpdateTickets = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeEditRecord) return;
     const fd = new FormData(e.currentTarget);
+    
     const updates: Partial<Visitation> = {
+        hasIncident: fd.get('hasIncident') as any,
+        incidentType: fd.get('incidentType') as string,
         incidentTicket: fd.get('incidentTicket') as string, 
         incidentStatus: fd.get('incidentStatus') as any,
+        hasRequest: fd.get('hasRequest') as any,
+        requestType: fd.get('requestType') as string,
         requestTicket: fd.get('requestTicket') as string,
         requestStatus: fd.get('requestStatus') as any,
     };
-    setVisitations(visitations.map(v => v.id === activeEditRecord.id ? { ...v, ...updates } : v));
+    
+    setVisitations(prev => prev.map(v => v.id === activeEditRecord.id ? { ...v, ...updates } : v));
     setIsEditTicketModalOpen(false);
+    setActiveEditRecord(null);
   };
 
   const handleSaveMda = (e: React.FormEvent<HTMLFormElement>) => {
@@ -546,21 +562,7 @@ export function FRFSystem() {
     const [startDate, setStartDate] = useState(getTodayString());
     const [endDate, setEndDate] = useState(getTodayString());
     const [reportMode, setReportMode] = useState<'PERSONNEL' | 'MASTER' | 'WEEKLY'>('WEEKLY');
-    const [exportFormat, setExportFormat] = useState<'PDF' | 'CSV' | 'XLSX'>('CSV');
     const [isExporting, setIsExporting] = useState(false);
-
-    const EXPORT_FIELDS = [
-      { id: 'date', label: 'Date' },
-      { id: 'mdaName', label: 'MDA Node' },
-      { id: 'frfName', label: 'Respondent' },
-      { id: 'wasVisited', label: 'Visited' },
-      { id: 'hasIncident', label: 'Incident' },
-      { id: 'incidentTicket', label: 'Ticket ID' },
-      { id: 'incidentStatus', label: 'Status' },
-      { id: 'comments', label: 'Comments' }
-    ];
-
-    const [selectedCols, setSelectedCols] = useState<string[]>(EXPORT_FIELDS.map(f => f.id));
 
     const audit = useMemo(() => {
         const filtered = visitations.filter(v => v.date >= startDate && v.date <= endDate);
@@ -569,15 +571,6 @@ export function FRFSystem() {
         const incidents = filtered.filter(v => v.hasIncident === 'Yes');
         const incidentResolved = incidents.filter(v => v.incidentStatus === 'YES RESOLVED');
         const incidentPending = incidents.filter(v => v.incidentStatus !== 'YES RESOLVED');
-        const requests = filtered.filter(v => v.hasRequest === 'Yes');
-        const requestGranted = requests.filter(v => v.requestStatus === 'YES GRANTED');
-        const requestPending = requests.filter(v => v.requestStatus !== 'YES GRANTED');
-        const reasonCounts = REASONS_NOT_VISITED.reduce((acc, reason) => {
-          acc[reason] = notVisited.filter(v => v.reasonNotVisited === reason).length;
-          return acc;
-        }, {} as Record<string, number>);
-        const incidentTickets = incidents.map(v => v.incidentTicket).filter(Boolean).join(", ");
-        const requestTickets = requests.map(v => v.requestTicket).filter(Boolean).join(", ");
 
         return {
             totalMdas: mdas.length,
@@ -586,77 +579,44 @@ export function FRFSystem() {
             incidentsReceived: incidents.length,
             incidentsResolved: incidentResolved.length,
             incidentsPending: incidentPending.length,
-            requestsReceived: requests.length,
-            requestsGranted: requestGranted.length,
-            requestsPending: requestPending.length,
             totalResponses: filtered.length,
-            actualVisitsCount: visited.length,
-            actualNotVisitedCount: notVisited.length,
-            reasonCounts,
-            incidentTickets,
-            requestTickets,
-            rawData: filtered,
-            personnelCounts: users.filter(u => u.role === 'FRF').map(frf => ({
-                id: frf.id,
-                name: frf.name,
-                count: filtered.filter(v => v.frfId === frf.id).length
-            })).sort((a, b) => b.count - a.count)
+            actualData: filtered
         };
-    }, [visitations, mdas, users, startDate, endDate]);
+    }, [visitations, mdas, startDate, endDate]);
 
-    const handleExportWeekly = () => {
+    const handleExportPDF = () => {
       setIsExporting(true);
+      // Small timeout to allow state to settle if needed, then print.
       setTimeout(() => {
-          try {
-              if (exportFormat === 'PDF') {
-                  window.print();
-                  setIsExporting(false);
-                  return;
-              }
-              const delimiter = exportFormat === 'XLSX' ? '\t' : ',';
-              const extension = exportFormat === 'XLSX' ? 'xls' : 'csv';
-              const mimeType = exportFormat === 'XLSX' ? 'application/vnd.ms-excel' : 'text/csv;charset=utf-8;';
-              let output = "";
-              if (exportFormat === 'CSV') output += "sep=,\n";
-              
-              const rows = [
-                [`WEEKLY STRATEGIC REPORT - ${startDate} TO ${endDate}`, ""],
-                ["TOTAL NUMBER OF MDAS", audit.totalMdas],
-                ["TOTAL NUMBER OF MDAS VISITED", audit.visitedMdasCount],
-                ["TOTAL NUMBER OF MDAS NOT VISITED", audit.notVisitedMdasCount],
-                ["TOTAL NUMBER OF INCIDENT RECEIVED", audit.incidentsReceived],
-                ["TOTAL NUMBER OF INCIDENT RESOLVED", audit.incidentsResolved],
-                ["INCIDENT UNRESOLVED/PENDING RESOLUTION", audit.incidentsPending],
-                ["TOTAL NUMBER OF REQUEST RECEIVED", audit.requestsReceived],
-                ["TOTAL NUMBER OF REQUEST GRANTED", audit.requestsGranted],
-                ["REQUEST UNGRANTED/PENDING RESOLUTION", audit.requestsPending],
-                ["Total Number of Responses", audit.totalResponses],
-                ["Total Number of First Respondent Actual Visits to MDAs", audit.actualVisitsCount],
-                ["Total Number of First Respondent Actual MDAs Not Visited", audit.actualNotVisitedCount],
-                ["Reason for not visiting", ""],
-                ...REASONS_NOT_VISITED.map(r => [r, audit.reasonCounts[r]]),
-                ["COMPLAINED & RESOLVED INCIDENT", audit.incidentsResolved],
-                ["State ticket numbers", audit.incidentTickets || "N/A"],
-                ["Customer Comment/Findings/Suggestion/Specal Request/Complaint?", ""],
-                ...audit.rawData.map(v => [v.mdaName, v.comments?.trim() ? v.comments : "N/A"])
-              ];
-              
-              output += rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(delimiter)).join("\n");
-              const BOM = '\uFEFF';
-              const blob = new Blob([BOM + output], { type: mimeType });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.setAttribute("href", url);
-              link.setAttribute("download", `GBB_Weekly_Executive_Report_${startDate}_to_${endDate}.${extension}`);
-              link.click();
-              URL.revokeObjectURL(url);
-          } catch (e) { alert("Export Failure."); } finally { setIsExporting(false); }
-      }, 1000);
+        window.print();
+        setIsExporting(false);
+      }, 500);
     };
 
     return (
         <div className="space-y-10 animate-in fade-in duration-700 pb-20 print:p-0">
-            <div className="bg-[#011a0e] p-8 md:p-12 rounded-[40px] border border-white/5 flex flex-col lg:flex-row justify-between items-center gap-8 shadow-3xl print:hidden relative overflow-hidden">
+            {/* PRINT ONLY HEADER */}
+            <div className="print-only mb-10 border-b-4 border-emerald-600 pb-6">
+                <div className="flex justify-between items-end mb-8">
+                    <img src={LOGO_URL} className="h-16 grayscale" />
+                    <div className="text-right">
+                        <h1 className="text-2xl font-black uppercase">Strategic Intelligence Report</h1>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Confidential Data Flow • GBB CSS HUB</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-8 text-[10px] font-bold uppercase tracking-wider">
+                    <div>
+                        <p className="text-slate-400 mb-1">Intelligence window</p>
+                        <p className="text-slate-900">{startDate} to {endDate}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-slate-400 mb-1">Generated by</p>
+                        <p className="text-slate-900">{user?.name} ({user?.role})</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-[#011a0e] p-8 md:p-12 rounded-[40px] border border-white/5 flex flex-col lg:flex-row justify-between items-center gap-8 shadow-3xl no-print relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/5 rounded-full blur-[80px] -mr-32 -mt-32" />
                 <div className="text-center lg:text-left relative z-10">
                     <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter">Strategic Intelligence Hub</h2>
@@ -664,47 +624,53 @@ export function FRFSystem() {
                         <MonitorCheck className="w-3.5 h-3.5" /> Analytical Command Center
                     </p>
                 </div>
-                <div className="flex flex-col gap-3 relative z-10">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Intelligence Sync Window</p>
+                <div className="flex flex-col sm:flex-row gap-4 relative z-10">
                   <DateRangePicker start={startDate} end={endDate} onStartChange={setStartDate} onEndChange={setEndDate} />
+                  <button 
+                    onClick={handleExportPDF} 
+                    disabled={isExporting}
+                    className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 hover:bg-emerald-500 transition-all shadow-2xl disabled:opacity-50"
+                  >
+                    {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    Export Strategic Report
+                  </button>
                 </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5 w-fit mx-auto lg:mx-0 print:hidden shadow-xl">
+            <div className="flex flex-wrap gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5 w-fit mx-auto lg:mx-0 no-print shadow-xl">
                 <button onClick={() => setReportMode('WEEKLY')} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${reportMode === 'WEEKLY' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}>
                     <ListChecks className="w-3.5 h-3.5" /> Weekly Summary
                 </button>
-                <button onClick={() => setReportMode('MASTER')} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${reportMode === 'MASTER' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}>
-                    <Database className="w-3.5 h-3.5" /> Master Audit
-                </button>
             </div>
 
-            {reportMode === 'WEEKLY' ? (
-              <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <CommandCard title="Strategic Performance Metrics" icon={Trophy}>
+            <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500 print:space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:grid-cols-2 print:gap-4">
+                <div className="print-break-inside-avoid">
+                  <CommandCard title="Performance Metrics" icon={Trophy}>
                     <div className="space-y-4">
                       {[
-                        { label: "TOTAL NETWORK NODES", val: audit.totalMdas },
-                        { label: "NODES VERIFIED (VISITED)", val: audit.visitedMdasCount, color: "text-emerald-400" },
-                        { label: "NODES UNREACHABLE", val: audit.notVisitedMdasCount, color: "text-rose-400" },
+                        { label: "Total Network Nodes", val: audit.totalMdas },
+                        { label: "Nodes Verified (Visited)", val: audit.visitedMdasCount, color: "text-emerald-400" },
+                        { label: "Nodes Unreachable", val: audit.notVisitedMdasCount, color: "text-rose-400" },
                         { label: "Total Operational Responses", val: audit.totalResponses },
                       ].map(m => (
-                        <div key={m.label} className="flex justify-between items-center py-3 border-b border-white/5">
+                        <div key={m.label} className="flex justify-between items-center py-3 border-b border-white/5 print:border-slate-100">
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest print:text-slate-700">{m.label}</span>
                           <span className={`text-xl font-black ${m.color || 'text-white'} print:text-slate-900`}>{m.val}</span>
                         </div>
                       ))}
                     </div>
                   </CommandCard>
-                  <CommandCard title="Violation Log Analysis" icon={AlertOctagon}>
+                </div>
+                <div className="print-break-inside-avoid">
+                  <CommandCard title="Violation Log" icon={AlertOctagon}>
                     <div className="space-y-4">
                       {[
-                        { label: "INCIDENTS RECEIVED", val: audit.incidentsReceived, color: "text-rose-500" },
-                        { label: "INCIDENTS RESOLVED", val: audit.incidentsResolved, color: "text-emerald-500" },
-                        { label: "INCIDENTS PENDING", val: audit.incidentsPending, color: "text-rose-600" }
+                        { label: "Incidents Received", val: audit.incidentsReceived, color: "text-rose-500" },
+                        { label: "Incidents Resolved", val: audit.incidentsResolved, color: "text-emerald-500" },
+                        { label: "Incidents Pending", val: audit.incidentsPending, color: "text-rose-600" }
                       ].map(m => (
-                        <div key={m.label} className="flex justify-between items-center py-3 border-b border-white/5">
+                        <div key={m.label} className="flex justify-between items-center py-3 border-b border-white/5 print:border-slate-100">
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest print:text-slate-700">{m.label}</span>
                           <span className={`text-xl font-black ${m.color || 'text-white'} print:text-slate-900`}>{m.val}</span>
                         </div>
@@ -713,7 +679,42 @@ export function FRFSystem() {
                   </CommandCard>
                 </div>
               </div>
-            ) : null}
+
+              {/* PRINT ONLY TABLE DATA */}
+              <div className="print-only mt-12 print-break-inside-avoid">
+                <h3 className="text-sm font-black uppercase mb-4 text-slate-900">Tactical Activity Logs</h3>
+                <table className="w-full text-[8px] uppercase font-bold border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-y border-slate-200">
+                      <th className="p-2 text-left">Date</th>
+                      <th className="p-2 text-left">Node Designation</th>
+                      <th className="p-2 text-left">Respondent</th>
+                      <th className="p-2 text-center">Status</th>
+                      <th className="p-2 text-left">Observations</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {audit.actualData.map(v => (
+                      <tr key={v.id} className="border-b border-slate-100">
+                        <td className="p-2 whitespace-nowrap">{v.date}</td>
+                        <td className="p-2 font-black">{v.mdaName}</td>
+                        <td className="p-2">{v.frfName}</td>
+                        <td className="p-2 text-center">
+                          {v.hasIncident === 'Yes' ? (v.incidentStatus === 'YES RESOLVED' ? 'RESOLVED' : 'INCIDENT') : 'SECURE'}
+                        </td>
+                        <td className="p-2 italic text-slate-500">{v.comments.substring(0, 100)}{v.comments.length > 100 ? '...' : ''}</td>
+                      </tr>
+                    ))}
+                    {audit.actualData.length === 0 && (
+                      <tr><td colSpan={5} className="p-10 text-center text-slate-400">No telemetry recorded for this window.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+                <div className="mt-20 text-center">
+                    <p className="text-[6px] text-slate-400 uppercase tracking-[0.5em]">Digitally Verified • CSS Intelligence Matrix • End of Report</p>
+                </div>
+              </div>
+            </div>
         </div>
     );
   };
@@ -727,36 +728,39 @@ export function FRFSystem() {
 
     return (
       <div className="space-y-6 animate-in fade-in duration-700">
-        <div className="flex justify-between items-center bg-[#011a0e] p-8 rounded-[40px] border border-white/5">
+        <div className="flex flex-col md:flex-row justify-between items-center bg-[#011a0e] p-8 rounded-[40px] border border-white/5 gap-4">
             <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Tactical Vault</h2>
-            <div className="relative w-[300px]"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search Archive..." className="w-full pl-12 pr-6 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-[11px] uppercase outline-none" /></div>
+            <div className="relative w-full md:w-[300px] no-print"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search Archive..." className="w-full pl-12 pr-6 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-[11px] uppercase outline-none" /></div>
         </div>
         <div className="space-y-4">
+          {filteredData.length === 0 && <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[40px] text-slate-500 font-black uppercase text-xs tracking-widest">No Strategic Records Found</div>}
           {filteredData.map(v => (
             <div key={v.id} className="bg-[#011a0e] p-8 rounded-[32px] border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group hover:border-emerald-500/20 transition-all">
                 <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center shrink-0">
                         <span className="text-xl font-black text-white">{new Date(v.date).getDate()}</span>
                         <span className="text-[8px] font-black text-slate-500 uppercase">{new Date(v.date).toLocaleString('default', { month: 'short' })}</span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <h4 className="text-lg font-black text-white uppercase truncate">{v.mdaName}</h4>
-                        <div className="flex items-center gap-3 mt-1">
+                        <div className="flex items-center flex-wrap gap-3 mt-1">
                             <span className="text-[9px] text-emerald-500 font-black uppercase tracking-widest">{v.frfName}</span>
                             <div className="w-1 h-1 rounded-full bg-slate-700" />
-                            <span className="text-[9px] text-slate-500 font-bold uppercase">{v.visitStartTime} - {v.visitEndTime}</span>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase whitespace-nowrap">{v.visitStartTime || '??:??'} - {v.visitEndTime || '??:??'}</span>
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-4 items-center">
-                    <div className="flex gap-1">
-                        {v.checklist?.internet ? <Wifi className="w-3.5 h-3.5 text-emerald-500" /> : <Wifi className="w-3.5 h-3.5 text-rose-500/50" />}
-                        {v.checklist?.power ? <Power className="w-3.5 h-3.5 text-emerald-500" /> : <Power className="w-3.5 h-3.5 text-rose-500/50" />}
-                        {v.checklist?.voice ? <PhoneCall className="w-3.5 h-3.5 text-emerald-500" /> : <PhoneCall className="w-3.5 h-3.5 text-rose-500/50" />}
+                <div className="flex gap-4 items-center shrink-0">
+                    <div className="flex gap-1.5 px-3 py-1.5 bg-black/20 rounded-lg">
+                        <Wifi className={`w-3.5 h-3.5 ${v.checklist?.internet ? 'text-emerald-500' : 'text-rose-500/30'}`} />
+                        <Power className={`w-3.5 h-3.5 ${v.checklist?.power ? 'text-emerald-500' : 'text-rose-500/30'}`} />
+                        <PhoneCall className={`w-3.5 h-3.5 ${v.checklist?.voice ? 'text-emerald-500' : 'text-rose-500/30'}`} />
                     </div>
-                    <Badge variant={v.hasIncident === 'Yes' ? 'error' : 'success'} size="sm">{v.hasIncident === 'Yes' ? 'Alert' : 'Secure'}</Badge>
+                    <Badge variant={v.hasIncident === 'Yes' ? (v.incidentStatus === 'YES RESOLVED' ? 'success' : 'error') : 'gray'} size="sm">
+                        {v.hasIncident === 'Yes' ? (v.incidentStatus === 'YES RESOLVED' ? 'Resolved' : 'Incident') : 'Secure'}
+                    </Badge>
                     {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
-                      <button onClick={() => { setActiveEditRecord(v); setIsEditTicketModalOpen(true); }} className="p-3 bg-white/5 hover:bg-emerald-600 rounded-xl transition-all text-slate-400 hover:text-white"><FileEdit className="w-4 h-4" /></button>
+                      <button onClick={() => { setActiveEditRecord(v); setIsEditTicketModalOpen(true); }} className="p-3 bg-white/5 hover:bg-emerald-600 rounded-xl transition-all text-slate-400 hover:text-white no-print"><FileEdit className="w-4 h-4" /></button>
                     )}
                 </div>
             </div>
@@ -768,55 +772,72 @@ export function FRFSystem() {
 
   const SubmitReportForm = () => {
     const [step, setStep] = useState(1);
-    const [q3, setQ3] = useState<'Yes' | 'No'>('Yes');
-    const [q5, setQ5] = useState<'Yes' | 'No'>('No');
-    const [q6, setQ6] = useState<'Yes' | 'No'>('No');
+    const [formValues, setFormValues] = useState({
+        mdaId: '',
+        date: getTodayString(),
+        contactName: '',
+        contactPhone: '',
+        startTime: '',
+        endTime: '',
+        wasVisited: 'Yes' as 'Yes' | 'No',
+        reasonNotVisited: '',
+        incidentType: '',
+        incidentTicket: '',
+        requestType: '',
+        requestTicket: '',
+        comments: '',
+        hasIncident: 'No' as 'Yes' | 'No',
+        hasRequest: 'No' as 'Yes' | 'No',
+    });
     const [checklist, setChecklist] = useState({ internet: true, power: true, voice: true, lan: true });
     
     const myMdas = mdas.filter(m => user?.assignedMdaIds.includes(m.id) && m.active);
 
+    const updateField = (name: string, value: any) => {
+        setFormValues(prev => ({ ...prev, [name]: value }));
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const fd = new FormData(e.currentTarget as HTMLFormElement);
-        const mdaId = fd.get('mdaId') as string;
-        const mda = mdas.find(m => m.id === mdaId);
+        const mda = mdas.find(m => m.id === formValues.mdaId);
         
         const newVisitation: Visitation = {
             id: generateId(), 
             frfId: user!.id, 
             frfName: user!.name, 
-            date: fd.get('date') as string, 
+            date: formValues.date, 
             timestamp: Date.now(), 
-            mdaId, 
-            mdaName: mda?.name || '',
-            contactName: fd.get('contactName') as string,
-            contactPhone: fd.get('contactPhone') as string,
-            visitStartTime: fd.get('startTime') as string,
-            visitEndTime: fd.get('endTime') as string,
-            wasVisited: q3, 
-            reasonNotVisited: q3 === 'No' ? fd.get('reasonNotVisited') as string : undefined, 
+            mdaId: formValues.mdaId, 
+            mdaName: mda?.name || 'UNKNOWN HUB',
+            contactName: formValues.contactName,
+            contactPhone: formValues.contactPhone,
+            visitStartTime: formValues.startTime,
+            visitEndTime: formValues.endTime,
+            wasVisited: formValues.wasVisited, 
+            reasonNotVisited: formValues.wasVisited === 'No' ? formValues.reasonNotVisited : undefined, 
             checklist,
-            hasIncident: q5, 
-            incidentType: q5 === 'Yes' ? fd.get('incidentType') as string : undefined,
-            incidentTicket: q5 === 'Yes' ? fd.get('incidentTicket') as string : undefined,
-            incidentStatus: q5 === 'Yes' ? 'NO PENDING' : undefined,
-            hasRequest: q6, 
-            requestType: q6 === 'Yes' ? fd.get('requestType') as string : undefined,
-            requestTicket: q6 === 'Yes' ? fd.get('requestTicket') as string : undefined,
-            requestStatus: q6 === 'Yes' ? 'NO PENDING' : undefined,
-            comments: (fd.get('comments') as string) || "N/A"
+            hasIncident: formValues.hasIncident, 
+            incidentType: formValues.hasIncident === 'Yes' ? formValues.incidentType : undefined,
+            incidentTicket: formValues.hasIncident === 'Yes' ? formValues.incidentTicket : undefined,
+            incidentStatus: formValues.hasIncident === 'Yes' ? 'NO PENDING' : undefined,
+            hasRequest: formValues.hasRequest, 
+            requestType: formValues.hasRequest === 'Yes' ? formValues.requestType : undefined,
+            requestTicket: formValues.hasRequest === 'Yes' ? formValues.requestTicket : undefined,
+            requestStatus: formValues.hasRequest === 'Yes' ? 'NO PENDING' : undefined,
+            comments: formValues.comments.trim() || "N/A"
         };
         
-        setVisitations([...visitations, newVisitation]);
-        setActiveTab('history');
+        setVisitations(prev => [...prev, newVisitation]);
+        setActiveTab('dashboard');
+        alert("Success: Tactical Deployment Intelligence Broadcasted.");
     };
 
     return (
         <div className="max-w-5xl mx-auto pb-20 space-y-8 animate-in slide-in-from-bottom-6 duration-500">
-            <div className="flex items-center justify-between bg-[#011a0e] p-8 rounded-[40px] border border-white/5">
+            <div className="flex items-center justify-between bg-[#011a0e] p-8 rounded-[40px] border border-white/5 no-print">
                 <div>
                     <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Strategic Intelligence Broadcast</h2>
-                    <p className="text-[10px] font-black text-slate-500 uppercase mt-1">Capture critical site metrics</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase mt-1">Capture critical site metrics • Step {step} of 3</p>
                 </div>
                 <div className="flex gap-2">
                     {[1, 2, 3].map(s => (
@@ -825,39 +846,45 @@ export function FRFSystem() {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-8 no-print">
                 {step === 1 && (
                     <CommandCard title="Sector 1: Site Metadata & Personnel" icon={UserCheck}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4"><label className="text-[9px] font-black text-slate-500 uppercase">1. Authorized Hub Node</label><select name="mdaId" required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs"><option value="">Select MDA...</option>{myMdas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-                            <div className="space-y-4"><label className="text-[9px] font-black text-slate-500 uppercase">2. Reporting Window</label><input name="date" type="date" required defaultValue={getTodayString()} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs" /></div>
+                            <div className="space-y-4">
+                                <label className="text-[9px] font-black text-slate-500 uppercase">1. Authorized Hub Node</label>
+                                <select value={formValues.mdaId} onChange={e => updateField('mdaId', e.target.value)} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs"><option value="">Select MDA Hub...</option>{myMdas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+                            </div>
+                            <div className="space-y-4">
+                                <label className="text-[9px] font-black text-slate-500 uppercase">2. Reporting Window</label>
+                                <input value={formValues.date} onChange={e => updateField('date', e.target.value)} type="date" required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs" />
+                            </div>
                             <div className="space-y-4">
                                 <label className="text-[9px] font-black text-slate-500 uppercase">3. Site Contact Personnel Met</label>
                                 <div className="flex gap-4">
-                                    <div className="flex-1 relative"><UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input name="contactName" placeholder="Full Name" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
-                                    <div className="flex-1 relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input name="contactPhone" placeholder="Official Phone" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.contactName} onChange={e => updateField('contactName', e.target.value)} placeholder="Full Name" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.contactPhone} onChange={e => updateField('contactPhone', e.target.value)} placeholder="Official Phone" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
                                 </div>
                             </div>
                             <div className="space-y-4">
                                 <label className="text-[9px] font-black text-slate-500 uppercase">4. Operational Duration</label>
                                 <div className="flex gap-4">
-                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input name="startTime" type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
-                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input name="endTime" type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.startTime} onChange={e => updateField('startTime', e.target.value)} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
+                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.endTime} onChange={e => updateField('endTime', e.target.value)} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
                                 </div>
                             </div>
                         </div>
-                        <button type="button" onClick={() => setStep(2)} className="mt-12 w-full py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-xs tracking-widest hover:bg-emerald-500 transition-all shadow-3xl">Proceed to Sector 2</button>
+                        <button type="button" onClick={() => setStep(2)} className="mt-12 w-full py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-xs tracking-widest hover:bg-emerald-500 transition-all shadow-3xl">Next: Technical Audit</button>
                     </CommandCard>
                 )}
                 {step === 2 && (
                     <CommandCard title="Sector 2: Technical Audit & Logistics" icon={Activity}>
                         <div className="space-y-12">
                             <div className="p-8 bg-black/40 border border-white/10 rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-6">
-                                <div className="min-w-0 flex-1"><h4 className="text-sm font-black text-white uppercase tracking-tight">Was Hub Visited?</h4><p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Verification required</p></div>
-                                <div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ3(o as any)} className={`px-10 py-4 rounded-2xl font-black text-[10px] uppercase border transition-all ${q3 === o ? 'bg-emerald-600 border-emerald-500 text-white shadow-xl' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div>
+                                <div className="min-w-0 flex-1"><h4 className="text-sm font-black text-white uppercase tracking-tight">Was Hub Visited?</h4><p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Direct field presence verification required</p></div>
+                                <div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => updateField('wasVisited', o)} className={`px-10 py-4 rounded-2xl font-black text-[10px] uppercase border transition-all ${formValues.wasVisited === o ? 'bg-emerald-600 border-emerald-500 text-white shadow-xl' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div>
                             </div>
-                            {q3 === 'No' ? (
-                                <div className="p-8 bg-rose-600/5 border border-rose-500/20 rounded-[32px] space-y-4 animate-in zoom-in-95"><label className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Reason for Absence</label><select name="reasonNotVisited" required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs"><option value="">Select official reason...</option>{REASONS_NOT_VISITED.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                            {formValues.wasVisited === 'No' ? (
+                                <div className="p-8 bg-rose-600/5 border border-rose-500/20 rounded-[32px] space-y-4 animate-in zoom-in-95"><label className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Formal Reason for Absence</label><select value={formValues.reasonNotVisited} onChange={e => updateField('reasonNotVisited', e.target.value)} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs"><option value="">Select official reason...</option>{REASONS_NOT_VISITED.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="p-8 bg-emerald-600/5 border border-emerald-500/10 rounded-[32px] space-y-6">
@@ -873,39 +900,45 @@ export function FRFSystem() {
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="p-8 bg-blue-600/5 border border-blue-500/10 rounded-[32px] space-y-6"><h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-500/10 pb-4">Observations</h4><textarea name="comments" rows={5} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white outline-none focus:border-blue-500" placeholder="Describe site conditions..." /></div>
+                                    <div className="p-8 bg-blue-600/5 border border-blue-500/10 rounded-[32px] space-y-6"><h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-500/10 pb-4">Observations</h4><textarea value={formValues.comments} onChange={e => updateField('comments', e.target.value)} rows={5} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white outline-none focus:border-blue-500" placeholder="Describe site conditions..." /></div>
                                 </div>
                             )}
                         </div>
-                        <div className="flex gap-4 mt-12"><button type="button" onClick={() => setStep(1)} className="flex-1 py-6 bg-white/5 text-slate-500 rounded-[24px] font-black uppercase text-xs tracking-widest">Previous</button><button type="button" onClick={() => setStep(3)} className="flex-[2] py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-xs tracking-widest shadow-3xl">Next Sector</button></div>
+                        <div className="flex gap-4 mt-12"><button type="button" onClick={() => setStep(1)} className="flex-1 py-6 bg-white/5 text-slate-500 rounded-[24px] font-black uppercase text-xs tracking-widest">Back</button><button type="button" onClick={() => setStep(3)} className="flex-[2] py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-xs tracking-widest shadow-3xl">Next: Escalations</button></div>
                     </CommandCard>
                 )}
                 {step === 3 && (
-                    <CommandCard title="Sector 3: Escalations" icon={ShieldAlert}>
+                    <CommandCard title="Sector 3: Tactical Escalations" icon={ShieldAlert}>
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="p-8 bg-rose-600/5 border border-rose-500/10 rounded-[32px] space-y-8">
-                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Incident?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ5(o as any)} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${q5 === o ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-600'}`}>{o}</button>))}</div></div>
-                                    {q5 === 'Yes' && (<div className="space-y-6 animate-in fade-in"><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Nature</label><select name="incidentType" required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">Select...</option>{INCIDENT_TYPES.map(i => <option key={i} value={i}>{i}</option>)}</select></div><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Ticket</label><input name="incidentTicket" placeholder="INCT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" /></div></div>)}
+                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Incident Detected?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => updateField('hasIncident', o)} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${formValues.hasIncident === o ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-600'}`}>{o}</button>))}</div></div>
+                                    {formValues.hasIncident === 'Yes' && (<div className="space-y-6 animate-in fade-in"><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Nature</label><select value={formValues.incidentType} onChange={e => updateField('incidentType', e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">Select Category...</option>{INCIDENT_TYPES.map(i => <option key={i} value={i}>{i}</option>)}</select></div><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Ticket Reference</label><input value={formValues.incidentTicket} onChange={e => updateField('incidentTicket', e.target.value)} placeholder="INCT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" /></div></div>)}
                                 </div>
                                 <div className="p-8 bg-blue-600/5 border border-blue-500/10 rounded-[32px] space-y-8">
-                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Request?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => setQ6(o as any)} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${q6 === o ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-slate-600'}`}>{o}</button>))}</div></div>
-                                    {q6 === 'Yes' && (<div className="space-y-6 animate-in fade-in"><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Type</label><select name="requestType" required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">Select...</option>{REQUEST_TYPES.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Ticket</label><input name="requestTicket" placeholder="REQT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" /></div></div>)}
+                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Special Request?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => updateField('hasRequest', o)} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${formValues.hasRequest === o ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-slate-600'}`}>{o}</button>))}</div></div>
+                                    {formValues.hasRequest === 'Yes' && (<div className="space-y-6 animate-in fade-in"><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Type</label><select value={formValues.requestType} onChange={e => updateField('requestType', e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">Select Category...</option>{REQUEST_TYPES.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Ticket Reference</label><input value={formValues.requestTicket} onChange={e => updateField('requestTicket', e.target.value)} placeholder="REQT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" /></div></div>)}
                                 </div>
                             </div>
-                            <div className="pt-8"><button type="submit" className="w-full py-8 bg-emerald-600 text-white rounded-[32px] font-black uppercase text-sm tracking-[0.3em] shadow-3xl">Broadcast Intelligence</button></div>
+                            <div className="pt-8">
+                                <button onClick={handleSubmit} type="button" className="w-full py-8 bg-emerald-600 text-white rounded-[32px] font-black uppercase text-sm tracking-[0.3em] shadow-3xl hover:bg-emerald-500 transition-all flex items-center justify-center gap-4 group">
+                                    <Globe className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
+                                    <span>Broadcast Deployment Intelligence</span>
+                                </button>
+                                <button type="button" onClick={() => setStep(2)} className="w-full mt-4 py-4 text-slate-600 hover:text-white text-[10px] font-black uppercase tracking-widest">Back</button>
+                            </div>
                         </div>
                     </CommandCard>
                 )}
-            </form>
+            </div>
         </div>
     );
   };
 
   const Sidebar = () => (
     <>
-      <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden fixed bottom-6 right-6 z-[60] bg-emerald-600 text-white p-4 rounded-full shadow-3xl print:hidden"><Menu className="w-6 h-6" /></button>
-      <div className={`w-[280px] bg-[#011a0e] h-screen flex flex-col fixed left-0 top-0 border-r border-white/5 shadow-3xl z-[55] transition-transform lg:translate-x-0 print:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden fixed bottom-6 right-6 z-[60] bg-emerald-600 text-white p-4 rounded-full shadow-3xl no-print"><Menu className="w-6 h-6" /></button>
+      <div className={`w-[280px] bg-[#011a0e] h-screen flex flex-col fixed left-0 top-0 border-r border-white/5 shadow-3xl z-[55] transition-transform lg:translate-x-0 no-print ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-8"><img src={LOGO_URL} className="w-full brightness-200 grayscale h-12 object-contain" /></div>
         <nav className="flex-1 px-6 space-y-3 overflow-y-auto custom-scrollbar">
           <NavItem icon={LayoutDashboard} label="Mission Control" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} />
@@ -942,7 +975,7 @@ export function FRFSystem() {
                 <>
                   <StatPanel label="Authorized Nodes" value={mdas.length} icon={Building2} color="bg-emerald-600" />
                   <StatPanel label="System Telemetry" value={stats.totalVisits} icon={History} color="bg-blue-600" />
-                  <StatPanel label="Critical Alerts" value={stats.incidents.total} icon={AlertTriangle} color="bg-rose-600" />
+                  <StatPanel label="Critical Alerts" value={stats.activeIncidents} icon={AlertTriangle} color="bg-rose-600" />
                   <StatPanel label="Respondent Force" value={stats.totalFrfs} icon={Users} color="bg-amber-500" />
                 </>
               ) : (
@@ -955,13 +988,13 @@ export function FRFSystem() {
               )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 no-print">
               <CommandCard title={canManage ? "Strategic Command Console" : "Respondent Command Console"} icon={Settings2}>
                   <div className="grid grid-cols-2 gap-4">
                       {canManage ? (
                           <>
                               <button onClick={() => setActiveTab('mdas')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Building2 className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Nodes Matrix</span></button>
-                              <button onClick={() => setActiveTab('users')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><Users className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Personnel Auth</span></button>
+                              <button onClick={() => setActiveTab('users')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><Users className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Personnel Registry</span></button>
                               <button onClick={() => setActiveTab('reports')} className="p-6 bg-amber-600/10 border border-amber-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-amber-600 hover:text-white transition-all group shadow-sm"><PieChart className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Intelligence Hub</span></button>
                               <button onClick={() => setActiveTab('history')} className="p-6 bg-rose-600/10 border border-rose-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-rose-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Tactical Vault</span></button>
                           </>
@@ -973,12 +1006,15 @@ export function FRFSystem() {
                       )}
                   </div>
               </CommandCard>
-              <CommandCard title={isFRF ? "My Recent Deployments" : "Tactical Feed Summary"} icon={ActivitySquare}>
+              <CommandCard title={isFRF ? "My Recent Deployments" : "Global Tactical Feed"} icon={ActivitySquare}>
                   <div className="space-y-3">
+                      {feedData.length === 0 && <div className="py-20 text-center text-slate-500 font-black uppercase text-[9px] tracking-widest">Awaiting First Field Report</div>}
                       {feedData.slice(-5).reverse().map(v => (
                           <div key={v.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-xl flex justify-between items-center transition-all hover:bg-white/5">
-                              <div className="min-w-0"><p className="text-[10px] font-black text-white uppercase truncate">{v.mdaName}</p><p className="text-[8px] text-emerald-500 font-bold uppercase mt-0.5">{isFRF ? new Date(v.date).toLocaleDateString() : v.frfName}</p></div>
-                              <Badge variant={v.hasIncident === 'Yes' ? 'error' : 'success'} size="sm">{v.hasIncident === 'Yes' ? 'Violation' : 'Secure'}</Badge>
+                              <div className="min-w-0 pr-4"><p className="text-[10px] font-black text-white uppercase truncate">{v.mdaName}</p><p className="text-[8px] text-emerald-500 font-bold uppercase mt-0.5">{isFRF ? new Date(v.date).toLocaleDateString() : v.frfName}</p></div>
+                              <Badge variant={v.hasIncident === 'Yes' ? (v.incidentStatus === 'YES RESOLVED' ? 'success' : 'error') : 'success'} size="sm">
+                                  {v.hasIncident === 'Yes' ? (v.incidentStatus === 'YES RESOLVED' ? 'Resolved' : 'Violation') : 'Secure'}
+                              </Badge>
                           </div>
                       ))}
                   </div>
@@ -1033,28 +1069,57 @@ export function FRFSystem() {
         </div>
       </main>
 
-      {/* Management Modals */}
+      {/* Strategic Edit Modal */}
+      <Modal isOpen={isEditTicketModalOpen} onClose={() => { setIsEditTicketModalOpen(false); setActiveEditRecord(null); }} title="Intelligence Synchronization">
+          <form onSubmit={handleUpdateTickets} className="p-10 space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-rose-500/5 p-6 rounded-3xl border border-rose-500/10 space-y-6">
+                    <div className="flex justify-between items-center border-b border-rose-500/10 pb-4">
+                        <p className="text-[10px] font-black text-rose-400 uppercase">Incident Protocol</p>
+                        <select name="hasIncident" defaultValue={activeEditRecord?.hasIncident || 'No'} className="bg-transparent border-none text-[9px] font-black text-rose-500 uppercase outline-none"><option value="Yes">Yes</option><option value="No">No</option></select>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Incident Type</label><select name="incidentType" defaultValue={activeEditRecord?.incidentType} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs"><option value="">Select...</option>{INCIDENT_TYPES.map(i => <option key={i} value={i}>{i}</option>)}</select></div>
+                        <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Ticket ID</label><input name="incidentTicket" defaultValue={activeEditRecord?.incidentTicket} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs" /></div>
+                        <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Resolution Status</label><select name="incidentStatus" defaultValue={activeEditRecord?.incidentStatus || 'NO PENDING'} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs uppercase"><option value="NO PENDING">NO PENDING</option><option value="YES RESOLVED">YES RESOLVED</option><option value="PROCESSING">PROCESSING</option></select></div>
+                    </div>
+                </div>
+                <div className="bg-blue-500/5 p-6 rounded-3xl border border-blue-500/10 space-y-6">
+                    <div className="flex justify-between items-center border-b border-blue-500/10 pb-4">
+                        <p className="text-[10px] font-black text-blue-400 uppercase">Request Protocol</p>
+                        <select name="hasRequest" defaultValue={activeEditRecord?.hasRequest || 'No'} className="bg-transparent border-none text-[9px] font-black text-blue-500 uppercase outline-none"><option value="Yes">Yes</option><option value="No">No</option></select>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Request Type</label><select name="requestType" defaultValue={activeEditRecord?.requestType} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs"><option value="">Select...</option>{REQUEST_TYPES.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                        <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Ticket ID</label><input name="requestTicket" defaultValue={activeEditRecord?.requestTicket} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs" /></div>
+                        <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Grant Status</label><select name="requestStatus" defaultValue={activeEditRecord?.requestStatus || 'NO PENDING'} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs uppercase"><option value="NO PENDING">NO PENDING</option><option value="YES GRANTED">YES GRANTED</option><option value="PROCESSING">PROCESSING</option></select></div>
+                    </div>
+                </div>
+              </div>
+              <button type="submit" className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl hover:bg-emerald-500 transition-all">Synchronize Deployment Data</button>
+          </form>
+      </Modal>
+
+      {/* Assignment Modal */}
       <Modal isOpen={isAssignMdaOpen} onClose={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} title={`Tactical Node Mapping: ${mgmtUser?.name}`}>
           <div className="p-10 space-y-6">
-              {/* FIXED: Live lookup to prevent stale UI state */}
               {(() => {
                 const liveUser = users.find(u => u.id === mgmtUser?.id);
                 return (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-black/40 rounded-3xl border border-white/5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-black/40 rounded-3xl border border-white/5 no-print">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                         <input value={mdaAssignSearch} onChange={e => setMdaAssignSearch(e.target.value)} placeholder="Filter Nodes..." className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none focus:border-emerald-500/50" />
                       </div>
                       <select value={mdaAssignCategory} onChange={e => setMdaAssignCategory(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase outline-none appearance-none cursor-pointer"><option value="ALL">All Categories</option><option value="Ministry">Ministries</option><option value="Agency">Agencies</option></select>
                     </div>
-
-                    <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                    <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2 no-print">
                         {filteredMdasForAssignment.map(m => {
                           const isAssigned = liveUser?.assignedMdaIds.includes(m.id);
                           return (
                             <div key={m.id} onClick={() => mgmtUser && handleToggleMdaAssign(mgmtUser.id, m.id)} className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between group ${isAssigned ? 'bg-emerald-600/20 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-                              <div className="min-w-0 pr-4"><p className={`text-[10px] font-black uppercase truncate ${isAssigned ? 'text-emerald-400' : 'text-white'}`}>{m.name}</p><p className="text-[7px] text-slate-600 font-bold uppercase mt-0.5">{m.category} • {m.active ? 'Active' : 'Offline'}</p></div>
+                              <div className="min-w-0 pr-4"><p className={`text-[10px] font-black uppercase truncate ${isAssigned ? 'text-emerald-400' : 'text-white'}`}>{m.name}</p></div>
                               {isAssigned ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <div className="w-5 h-5 rounded-full border border-white/10 group-hover:border-emerald-500 transition-colors" />}
                             </div>
                           );
@@ -1063,45 +1128,29 @@ export function FRFSystem() {
                   </>
                 );
               })()}
-              <button onClick={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Finalize Strategy Mapping</button>
+              <button onClick={() => { setIsAssignMdaOpen(false); setMgmtUser(null); }} className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500 no-print">Close Mapping</button>
           </div>
       </Modal>
 
+      {/* User Editor Modal */}
       <Modal isOpen={isUserEditorOpen} onClose={() => { setIsUserEditorOpen(false); setMgmtUser(null); }} title={mgmtUser ? "Update Access Profile" : "Provision New Access"}>
           <form onSubmit={handleSaveUser} className="p-10 space-y-8">
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Personnel Name</label><input name="name" defaultValue={mgmtUser?.name} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Secure Email</label><input name="email" type="email" defaultValue={mgmtUser?.email} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs" /></div>
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Strategic Role</label><select name="role" defaultValue={mgmtUser?.role || 'FRF'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="FRF">FIRST RESPONDENT (FRF)</option><option value="ADMIN">SUPERVISOR (ADMIN)</option><option value="HEAD_OF_CSS">SECTOR HEAD (CSS)</option></select></div>
-              <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Commit Identity Registry</button>
+              <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Commit Identity</button>
           </form>
       </Modal>
 
+      {/* MDA Editor Modal */}
       <Modal isOpen={isMdaEditorOpen} onClose={() => { setIsMdaEditorOpen(false); setMgmtMda(null); }} title={mgmtMda ? "Configure Node" : "Provision Node"}>
           <form onSubmit={handleSaveMda} className="p-10 space-y-8">
               <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Formal Designation</label><input name="name" defaultValue={mgmtMda?.name} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs uppercase" /></div>
               <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase">Category</label><select name="category" defaultValue={mgmtMda?.category || 'Ministry'} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs"><option value="Ministry">Ministry</option><option value="Agency">Agency</option><option value="Corporation">Corporation</option><option value="Commission">Commission</option></select></div>
-                  <div className="flex flex-col items-center justify-center p-5 bg-black/40 border border-white/10 rounded-2xl"><label className="text-[10px] font-black text-slate-500 uppercase mb-3">Node Online</label><input type="checkbox" name="active" defaultChecked={mgmtMda?.active ?? true} className="w-6 h-6 accent-emerald-500" /></div>
+                  <div className="flex flex-col items-center justify-center p-5 bg-black/40 border border-white/10 rounded-2xl"><label className="text-[10px] font-black text-slate-500 uppercase mb-3">Online</label><input type="checkbox" name="active" defaultChecked={mgmtMda?.active ?? true} className="w-6 h-6 accent-emerald-500" /></div>
               </div>
-              <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Sync Node Registry</button>
-          </form>
-      </Modal>
-
-      <Modal isOpen={isEditTicketModalOpen} onClose={() => setIsEditTicketModalOpen(false)} title="Intelligence Sync">
-          <form onSubmit={handleUpdateTickets} className="p-10 space-y-10">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-rose-500/5 p-6 rounded-3xl border border-rose-500/10 space-y-4">
-                    <p className="text-[10px] font-black text-rose-400 uppercase border-b border-rose-500/10 pb-4">Incident Log</p>
-                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Ticket ID</label><input name="incidentTicket" defaultValue={activeEditRecord?.incidentTicket} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs" /></div>
-                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Status</label><select name="incidentStatus" defaultValue={activeEditRecord?.incidentStatus || 'NO PENDING'} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs uppercase"><option value="NO PENDING">NO PENDING</option><option value="YES RESOLVED">YES RESOLVED</option><option value="PROCESSING">PROCESSING</option></select></div>
-                </div>
-                <div className="bg-blue-500/5 p-6 rounded-3xl border border-blue-500/10 space-y-4">
-                    <p className="text-[10px] font-black text-blue-400 uppercase border-b border-blue-500/10 pb-4">Request Log</p>
-                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Ticket ID</label><input name="requestTicket" defaultValue={activeEditRecord?.requestTicket} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs" /></div>
-                    <div className="space-y-2"><label className="text-[9px] font-black text-slate-500 uppercase">Status</label><select name="requestStatus" defaultValue={activeEditRecord?.requestStatus || 'NO PENDING'} className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-bold text-white text-xs uppercase"><option value="NO PENDING">NO PENDING</option><option value="YES GRANTED">YES GRANTED</option><option value="PROCESSING">PROCESSING</option></select></div>
-                </div>
-              </div>
-              <button type="submit" className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl hover:bg-emerald-500">Finalize Synchronization</button>
+              <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs shadow-3xl hover:bg-emerald-500">Sync Node</button>
           </form>
       </Modal>
     </div>
