@@ -214,9 +214,7 @@ const INITIAL_MDAS: MDA[] = [
 
 const INITIAL_USERS: User[] = [
   { id: 'u1', name: 'Strategic Administrator', email: 'admin@gbb.com.ng', password: 'admin123', role: 'ADMIN', assignedMdaIds: [] },
-  { id: 'u4', name: 'Head of CSS', email: 'css@gbb.com.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] },
-  { id: 'u5', name: 'Asmau Alkali', email: 'asmau.alkali@galaxybackbone.com.ng', password: 'frf123', role: 'FRF', assignedMdaIds: ['mda-01', 'mda-05', 'mda-10'] },
-  { id: 'u6', name: 'Muhammad Bello', email: 'Muhammad.bello2@galaxybackbone.com.ng', password: 'frf123', role: 'FRF', assignedMdaIds: ['mda-02', 'mda-08', 'mda-15'] }
+  { id: 'u4', name: 'Head of CSS', email: 'css@gbb.com.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] }
 ];
 
 // --- Utils ---
@@ -319,9 +317,9 @@ export function FRFSystem() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v4') || JSON.stringify(INITIAL_MDAS)));
-  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v4') || JSON.stringify(INITIAL_USERS)));
-  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v4') || "[]"));
+  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v5') || JSON.stringify(INITIAL_MDAS)));
+  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v5') || JSON.stringify(INITIAL_USERS)));
+  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v5') || "[]"));
 
   const [isEditTicketModalOpen, setIsEditTicketModalOpen] = useState(false);
   const [activeEditRecord, setActiveEditRecord] = useState<Visitation | null>(null);
@@ -341,9 +339,9 @@ export function FRFSystem() {
   const [mdaAssignStatus, setMdaAssignStatus] = useState('ALL');
 
   useEffect(() => {
-    localStorage.setItem('gbb_mdas_v4', JSON.stringify(mdas));
-    localStorage.setItem('gbb_users_v4', JSON.stringify(users));
-    localStorage.setItem('gbb_visitations_v4', JSON.stringify(visitations));
+    localStorage.setItem('gbb_mdas_v5', JSON.stringify(mdas));
+    localStorage.setItem('gbb_users_v5', JSON.stringify(users));
+    localStorage.setItem('gbb_visitations_v5', JSON.stringify(visitations));
   }, [mdas, users, visitations]);
 
   const stats = useMemo(() => {
@@ -1100,75 +1098,16 @@ export function FRFSystem() {
   
   if (appState === 'LOGIN') return (
     <div className="min-h-screen bg-[#010a06] flex items-center justify-center p-8 relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]" />
-      </div>
-      
       <div className="max-w-md w-full z-10 space-y-6 animate-in slide-in-from-bottom-12 duration-700">
-        <div className="bg-[#011a0e] rounded-[60px] p-12 border border-white/10 text-center shadow-3xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50" />
-          
-          <div className="w-16 h-16 bg-emerald-600/10 border border-emerald-500/20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <Fingerprint className="w-8 h-8 text-emerald-500" />
-          </div>
-          
-          <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Secure Access Terminal</h2>
-          
+        <div className="bg-[#011a0e] rounded-[60px] p-12 border border-white/10 text-center shadow-3xl">
+          <div className="w-16 h-16 bg-emerald-600/10 border border-emerald-500/20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner"><Fingerprint className="w-8 h-8 text-emerald-500" /></div>
+          <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Enter your login details</h2>
           <form onSubmit={e => { e.preventDefault(); handleLogin(loginEmail, loginPassword); }} className="space-y-4">
-            <div className="space-y-1 text-left">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-4">Personnel Email</label>
-              <input 
-                value={loginEmail} 
-                onChange={e => setLoginEmail(e.target.value)} 
-                name="email" 
-                type="email" 
-                placeholder="admin@gbb.com.ng" 
-                className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" 
-                required 
-              />
-            </div>
-            
-            <div className="space-y-1 text-left">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-4">Access Key</label>
-              <input 
-                value={loginPassword} 
-                onChange={e => setLoginPassword(e.target.value)} 
-                name="password" 
-                type="password" 
-                placeholder="••••••••" 
-                className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" 
-                required 
-              />
-            </div>
-            
-            <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98] mt-4">
-              Initialize Session
-            </button>
+            <input value={loginEmail} onChange={e => setLoginEmail(e.target.value)} name="email" type="email" placeholder="Enter your GBB email" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
+            <input value={loginPassword} onChange={e => setLoginPassword(e.target.value)} name="password" type="password" placeholder="Password" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
+            <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Login</button>
           </form>
-
-          <div className="mt-12 pt-8 border-t border-white/5">
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4">Demo Credentials</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button 
-                onClick={() => { setLoginEmail('admin@gbb.com.ng'); setLoginPassword('admin123'); }}
-                className="p-3 bg-white/5 rounded-xl text-[8px] font-black uppercase text-slate-400 hover:bg-white/10 transition-all border border-white/5"
-              >
-                Admin Access
-              </button>
-              <button 
-                onClick={() => { setLoginEmail('asmau.alkali@galaxybackbone.com.ng'); setLoginPassword('frf123'); }}
-                className="p-3 bg-white/5 rounded-xl text-[8px] font-black uppercase text-slate-400 hover:bg-white/10 transition-all border border-white/5"
-              >
-                FRF Access
-              </button>
-            </div>
-          </div>
         </div>
-        
-        <p className="text-center text-[8px] font-black text-slate-600 uppercase tracking-[0.4em]">
-          Galaxy Backbone • Strategic Intelligence Matrix
-        </p>
       </div>
     </div>
   );
