@@ -317,9 +317,10 @@ export function FRFSystem() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [mdas, setMdas] = useState<MDA[]>(() => JSON.parse(localStorage.getItem('gbb_mdas_v5') || JSON.stringify(INITIAL_MDAS)));
-  const [users, setUsers] = useState<User[]>(() => JSON.parse(localStorage.getItem('gbb_users_v5') || JSON.stringify(INITIAL_USERS)));
-  const [visitations, setVisitations] = useState<Visitation[]>(() => JSON.parse(localStorage.getItem('gbb_visitations_v5') || "[]"));
+  const [mdas, setMdas] = useState<MDA[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [visitations, setVisitations] = useState<Visitation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isEditTicketModalOpen, setIsEditTicketModalOpen] = useState(false);
   const [activeEditRecord, setActiveEditRecord] = useState<Visitation | null>(null);
@@ -338,11 +339,53 @@ export function FRFSystem() {
   const [mdaAssignCategory, setMdaAssignCategory] = useState('ALL');
   const [mdaAssignStatus, setMdaAssignStatus] = useState('ALL');
 
+  // Initial Data Fetch
   useEffect(() => {
-    localStorage.setItem('gbb_mdas_v5', JSON.stringify(mdas));
-    localStorage.setItem('gbb_users_v5', JSON.stringify(users));
-    localStorage.setItem('gbb_visitations_v5', JSON.stringify(visitations));
-  }, [mdas, users, visitations]);
+    const fetchData = async () => {
+      try {
+        const [mdasRes, usersRes, visitsRes] = await Promise.all([
+          fetch('/api/mdas'),
+          fetch('/api/users'),
+          fetch('/api/visitations')
+        ]);
+        
+        if (mdasRes.ok) setMdas(await mdasRes.json());
+        if (usersRes.ok) setUsers(await usersRes.json());
+        if (visitsRes.ok) setVisitations(await visitsRes.json());
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Sync state changes to server
+  const syncMda = async (mda: MDA) => {
+    await fetch('/api/mdas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mda)
+    });
+  };
+
+  const syncUser = async (u: User) => {
+    await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(u)
+    });
+  };
+
+  const syncVisitation = async (v: Visitation) => {
+    await fetch('/api/visitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(v)
+    });
+  };
+
 
   const stats = useMemo(() => {
     const isFRF = user && user.role === 'FRF';
@@ -405,12 +448,16 @@ export function FRFSystem() {
         requestStatus: fd.get('requestStatus') as any,
     };
     
-    setVisitations(prev => prev.map(v => v.id === activeEditRecord.id ? { ...v, ...updates } : v));
+    const updated = visitations.map(v => v.id === activeEditRecord.id ? { ...v, ...updates } : v);
+    setVisitations(updated);
+    const updatedRecord = updated.find(v => v.id === activeEditRecord.id);
+    if (updatedRecord) syncVisitation(updatedRecord);
+    
     setIsEditTicketModalOpen(false);
     setActiveEditRecord(null);
   };
 
-  const handleSaveMda = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveMda = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const newMda: MDA = {
@@ -421,18 +468,21 @@ export function FRFSystem() {
     };
     if (mgmtMda) setMdas(mdas.map(m => m.id === mgmtMda.id ? newMda : m));
     else setMdas([...mdas, newMda]);
+    
+    await syncMda(newMda);
     setIsMdaEditorOpen(false);
     setMgmtMda(null);
   };
 
-  const handleDeleteMda = (id: string) => {
+  const handleDeleteMda = async (id: string) => {
     if (confirm("System Audit: Permanently purge this Node? All associated tactical mappings will be disconnected.")) {
       setMdas(mdas.filter(m => m.id !== id));
       setUsers(users.map(u => ({ ...u, assignedMdaIds: u.assignedMdaIds.filter(mId => mId !== id) })));
+      await fetch(`/api/mdas/${id}`, { method: 'DELETE' });
     }
   };
 
-  const handleSaveUser = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const updatedUser: User = {
@@ -445,26 +495,32 @@ export function FRFSystem() {
     };
     if (mgmtUser) setUsers(users.map(u => u.id === mgmtUser.id ? updatedUser : u));
     else setUsers([...users, updatedUser]);
+    
+    await syncUser(updatedUser);
     setIsUserEditorOpen(false);
     setMgmtUser(null);
   };
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUser = async (id: string) => {
     if (id === user?.id) { alert("Security Protocol: You cannot terminate your own active session."); return; }
     if (confirm("Tactical Revocation: Permanently revoke all access for this personnel?")) {
       setUsers(users.filter(u => u.id !== id));
+      await fetch(`/api/users/${id}`, { method: 'DELETE' });
     }
   };
 
-  const handleToggleMdaAssign = (userId: string, mdaId: string) => {
-    setUsers(prevUsers => prevUsers.map(u => 
+  const handleToggleMdaAssign = async (userId: string, mdaId: string) => {
+    const updatedUsers = users.map(u => 
       u.id === userId ? { 
         ...u, 
         assignedMdaIds: u.assignedMdaIds.includes(mdaId) 
           ? u.assignedMdaIds.filter(id => id !== mdaId) 
           : [...u.assignedMdaIds, mdaId] 
       } : u
-    ));
+    );
+    setUsers(updatedUsers);
+    const updatedUser = updatedUsers.find(u => u.id === userId);
+    if (updatedUser) await syncUser(updatedUser);
   };
 
   const filteredMdasForAssignment = useMemo(() => {
@@ -838,7 +894,7 @@ export function FRFSystem() {
         setFormValues(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formValues.mdaId) {
             alert("Error: Please select a Ministry/Hub.");
@@ -873,6 +929,7 @@ export function FRFSystem() {
         };
         
         setVisitations(prev => [...prev, newVisitation]);
+        await syncVisitation(newVisitation);
         setActiveTab('dashboard');
         alert("Success: FRF Daily Form Submitted.");
     };
@@ -1121,12 +1178,21 @@ export function FRFSystem() {
           <div className="text-right"><p className="text-xl font-black text-white uppercase leading-tight">{user?.name}</p><p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest opacity-80">{user?.role === 'FRF' ? 'First Respondent' : user?.role}</p></div>
         </header>
         <div className="pb-24">
-          {activeTab === 'dashboard' && <MissionControlDashboard />}
-          {activeTab === 'mdas' && user?.role === 'ADMIN' && <MDARegistry />}
-          {activeTab === 'users' && (user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && <PersonnelRegistry />}
-          {activeTab === 'reports' && (user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && <ReportsView />}
-          {activeTab === 'submit' && user?.role === 'FRF' && <SubmitReportForm />}
-          {activeTab === 'history' && <HistoryView />}
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-4">
+              <Loader2 className="w-12 h-12 text-emerald-500 animate-spin" />
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Synchronizing Intelligence Matrix...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'dashboard' && <MissionControlDashboard />}
+              {activeTab === 'mdas' && user?.role === 'ADMIN' && <MDARegistry />}
+              {activeTab === 'users' && (user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && <PersonnelRegistry />}
+              {activeTab === 'reports' && (user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && <ReportsView />}
+              {activeTab === 'submit' && user?.role === 'FRF' && <SubmitReportForm />}
+              {activeTab === 'history' && <HistoryView />}
+            </>
+          )}
         </div>
       </main>
 
