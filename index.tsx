@@ -85,15 +85,16 @@ interface MDA {
 }
 
 const REASONS_NOT_VISITED = [
-  "ABSENT - NO EXCUSE",
-  "ABSENT - SICK WITH EXCUSE",
-  "DRAFTED TO WORK/SUPPORT AT THE SERVICEDESK",
   "LOGISTICS CHALLENGES (NON AVAILABILITY OF BUS, DRIVER, FUEL ETC)",
-  "PUBLIC HOLDAY",
-  "DEPARTMENTAL MEETING",
+  "DRAFTED TO WORK/SUPPORT AT THE SERVICEDESK/CSM/ADMIN",
+  "NO MOVEMENT, DUE TO PROTEST",
+  "POWER/ELECTRICITY CHALLENGES AT CUSTOMER SITE",
+  "ABSENT - SICK WITH APPROVED EXCUSE",
+  "ABSENT - NO EXCUSE",
   "REQUEST/INCIDENT AT CUSTOMER SITE REMAIN UNRESOLVED",
+  "DEPARTMENTAL MEETING",
   "CDS",
-  "NO MOVEMENT, DUE TO PROTEST"
+  "PUBLIC HOLIDAY"
 ];
 
 const INCIDENT_TYPES = [
@@ -807,7 +808,7 @@ export function FRFSystem() {
                     <Badge variant={v.hasIncident === 'Yes' ? (v.incidentStatus === 'YES RESOLVED' ? 'success' : 'error') : 'gray'} size="sm">
                         {v.hasIncident === 'Yes' ? (v.incidentStatus === 'YES RESOLVED' ? 'Resolved' : 'Incident') : 'Secure'}
                     </Badge>
-                    {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
+                    {(user?.role === 'ADMIN') && (
                       <button onClick={() => { setActiveEditRecord(v); setIsEditTicketModalOpen(true); }} className="p-3 bg-white/5 hover:bg-emerald-600 rounded-xl transition-all text-slate-400 hover:text-white no-print"><FileEdit className="w-4 h-4" /></button>
                     )}
                 </div>
@@ -819,25 +820,19 @@ export function FRFSystem() {
   };
 
   const SubmitReportForm = () => {
-    const [step, setStep] = useState(1);
     const [formValues, setFormValues] = useState({
         mdaId: '',
         date: getTodayString(),
-        contactName: '',
-        contactPhone: '',
-        startTime: '',
-        endTime: '',
         wasVisited: 'Yes' as 'Yes' | 'No',
         reasonNotVisited: '',
-        incidentType: '',
-        incidentTicket: '',
-        requestType: '',
-        requestTicket: '',
-        comments: '',
         hasIncident: 'No' as 'Yes' | 'No',
+        incidentTicket: '',
+        incidentStatus: 'NO PENDING' as 'YES RESOLVED' | 'NO PENDING',
         hasRequest: 'No' as 'Yes' | 'No',
+        requestTicket: '',
+        requestStatus: 'NO PENDING' as 'YES GRANTED' | 'NO PENDING',
+        comments: '',
     });
-    const [checklist, setChecklist] = useState({ internet: true, power: true, voice: true, lan: true });
     
     const myMdas = mdas.filter(m => user?.assignedMdaIds.includes(m.id) && m.active);
 
@@ -847,6 +842,10 @@ export function FRFSystem() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formValues.mdaId) {
+            alert("Error: Please select a Ministry/Hub.");
+            return;
+        }
         const mda = mdas.find(m => m.id === formValues.mdaId);
         
         const newVisitation: Visitation = {
@@ -857,128 +856,136 @@ export function FRFSystem() {
             timestamp: Date.now(), 
             mdaId: formValues.mdaId, 
             mdaName: mda?.name || 'UNKNOWN HUB',
-            contactName: formValues.contactName,
-            contactPhone: formValues.contactPhone,
-            visitStartTime: formValues.startTime,
-            visitEndTime: formValues.endTime,
+            contactName: 'N/A',
+            contactPhone: 'N/A',
+            visitStartTime: '',
+            visitEndTime: '',
             wasVisited: formValues.wasVisited, 
             reasonNotVisited: formValues.wasVisited === 'No' ? formValues.reasonNotVisited : undefined, 
-            checklist,
+            checklist: { internet: true, power: true, voice: true, lan: true },
             hasIncident: formValues.hasIncident, 
-            incidentType: formValues.hasIncident === 'Yes' ? formValues.incidentType : undefined,
+            incidentType: 'General',
             incidentTicket: formValues.hasIncident === 'Yes' ? formValues.incidentTicket : undefined,
-            incidentStatus: formValues.hasIncident === 'Yes' ? 'NO PENDING' : undefined,
+            incidentStatus: formValues.hasIncident === 'Yes' ? formValues.incidentStatus : undefined,
             hasRequest: formValues.hasRequest, 
-            requestType: formValues.hasRequest === 'Yes' ? formValues.requestType : undefined,
+            requestType: 'General',
             requestTicket: formValues.hasRequest === 'Yes' ? formValues.requestTicket : undefined,
-            requestStatus: formValues.hasRequest === 'Yes' ? 'NO PENDING' : undefined,
+            requestStatus: formValues.hasRequest === 'Yes' ? formValues.requestStatus : undefined,
             comments: formValues.comments.trim() || "N/A"
         };
         
         setVisitations(prev => [...prev, newVisitation]);
         setActiveTab('dashboard');
-        alert("Success: Tactical Deployment Intelligence Broadcasted.");
+        alert("Success: FRF Daily Form Submitted.");
     };
 
     return (
-        <div className="max-w-5xl mx-auto pb-20 space-y-8 animate-in slide-in-from-bottom-6 duration-500">
-            <div className="flex items-center justify-between bg-[#011a0e] p-8 rounded-[40px] border border-white/5 no-print">
-                <div>
-                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Strategic Intelligence Broadcast</h2>
-                    <p className="text-[10px] font-black text-slate-500 uppercase mt-1">Capture critical site metrics • Step {step} of 3</p>
-                </div>
-                <div className="flex gap-2">
-                    {[1, 2, 3].map(s => (
-                        <div key={s} className={`w-10 h-1.5 rounded-full transition-all ${step >= s ? 'bg-emerald-500' : 'bg-white/10'}`} />
-                    ))}
-                </div>
+        <div className="max-w-4xl mx-auto pb-20 space-y-8 animate-in slide-in-from-bottom-6 duration-500">
+            <div className="bg-[#011a0e] p-8 rounded-[40px] border border-white/5 no-print">
+                <h2 className="text-3xl font-black text-white uppercase tracking-tighter">FRF Daily Form</h2>
+                <p className="text-[10px] font-black text-slate-500 uppercase mt-2">Official Field Response Documentation</p>
             </div>
 
-            <div className="space-y-8 no-print">
-                {step === 1 && (
-                    <CommandCard title="Sector 1: Site Metadata & Personnel" icon={UserCheck}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4">
-                                <label className="text-[9px] font-black text-slate-500 uppercase">1. Authorized Hub Node</label>
-                                <select value={formValues.mdaId} onChange={e => updateField('mdaId', e.target.value)} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs"><option value="">Select MDA Hub...</option>{myMdas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
-                            </div>
-                            <div className="space-y-4">
-                                <label className="text-[9px] font-black text-slate-500 uppercase">2. Reporting Window</label>
-                                <input value={formValues.date} onChange={e => updateField('date', e.target.value)} type="date" required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs" />
-                            </div>
-                            <div className="space-y-4">
-                                <label className="text-[9px] font-black text-slate-500 uppercase">3. Site Contact Personnel Met</label>
-                                <div className="flex gap-4">
-                                    <div className="flex-1 relative"><UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.contactName} onChange={e => updateField('contactName', e.target.value)} placeholder="Full Name" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
-                                    <div className="flex-1 relative"><Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.contactPhone} onChange={e => updateField('contactPhone', e.target.value)} placeholder="Official Phone" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <label className="text-[9px] font-black text-slate-500 uppercase">4. Operational Duration</label>
-                                <div className="flex gap-4">
-                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.startTime} onChange={e => updateField('startTime', e.target.value)} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
-                                    <div className="flex-1 relative"><Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" /><input value={formValues.endTime} onChange={e => updateField('endTime', e.target.value)} type="time" className="w-full pl-12 pr-4 py-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white" /></div>
-                                </div>
-                            </div>
+            <form onSubmit={handleSubmit} className="space-y-6 no-print">
+                <CommandCard title="Site Identification" icon={Building2}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-500 uppercase">Select Ministry / Hub *</label>
+                            <select value={formValues.mdaId} onChange={e => updateField('mdaId', e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs">
+                                <option value="">Select...</option>
+                                {myMdas.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                            </select>
                         </div>
-                        <button type="button" onClick={() => setStep(2)} className="mt-12 w-full py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-xs tracking-widest hover:bg-emerald-500 transition-all shadow-3xl">Next: Technical Audit</button>
-                    </CommandCard>
-                )}
-                {step === 2 && (
-                    <CommandCard title="Sector 2: Technical Audit & Logistics" icon={Activity}>
-                        <div className="space-y-12">
-                            <div className="p-8 bg-black/40 border border-white/10 rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-6">
-                                <div className="min-w-0 flex-1"><h4 className="text-sm font-black text-white uppercase tracking-tight">Was Hub Visited?</h4><p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Direct field presence verification required</p></div>
-                                <div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => updateField('wasVisited', o)} className={`px-10 py-4 rounded-2xl font-black text-[10px] uppercase border transition-all ${formValues.wasVisited === o ? 'bg-emerald-600 border-emerald-500 text-white shadow-xl' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>))}</div>
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-500 uppercase">Reporting Date *</label>
+                            <input value={formValues.date} onChange={e => updateField('date', e.target.value)} type="date" required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs" />
+                        </div>
+                    </div>
+                </CommandCard>
+
+                <CommandCard title="1. Was this Ministry Visited by FRF ?" icon={Activity}>
+                    <div className="space-y-6">
+                        <div className="flex gap-4">
+                            {['Yes', 'No'].map(o => (
+                                <button key={o} type="button" onClick={() => updateField('wasVisited', o)} className={`flex-1 py-4 rounded-xl font-black text-xs uppercase border transition-all ${formValues.wasVisited === o ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>
+                            ))}
+                        </div>
+
+                        {formValues.wasVisited === 'No' && (
+                            <div className="space-y-2 animate-in zoom-in-95">
+                                <label className="text-[9px] font-black text-rose-400 uppercase">2. If No, Give Reason ?</label>
+                                <select value={formValues.reasonNotVisited} onChange={e => updateField('reasonNotVisited', e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs">
+                                    <option value="">Select Reason...</option>
+                                    {REASONS_NOT_VISITED.map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
                             </div>
-                            {formValues.wasVisited === 'No' ? (
-                                <div className="p-8 bg-rose-600/5 border border-rose-500/20 rounded-[32px] space-y-4 animate-in zoom-in-95"><label className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Formal Reason for Absence</label><select value={formValues.reasonNotVisited} onChange={e => updateField('reasonNotVisited', e.target.value)} required className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl font-black text-white text-xs"><option value="">Select official reason...</option>{REASONS_NOT_VISITED.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="p-8 bg-emerald-600/5 border border-emerald-500/10 rounded-[32px] space-y-6">
-                                        <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-b border-emerald-500/10 pb-4">Checklist</h4>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            {[
-                                                { id: 'internet', icon: Wifi, label: 'Internet OK' },
-                                                { id: 'power', icon: Power, label: 'Power OK' },
-                                                { id: 'voice', icon: PhoneCall, label: 'Voice OK' },
-                                                { id: 'lan', icon: HardDrive, label: 'LAN OK' }
-                                            ].map(item => (
-                                                <div key={item.id} onClick={() => setChecklist(prev => ({ ...prev, [item.id]: !prev[item.id as keyof typeof prev] }))} className={`p-5 rounded-2xl border cursor-pointer transition-all flex flex-col items-center gap-2 ${checklist[item.id as keyof typeof checklist] ? 'bg-emerald-600/10 border-emerald-500/50 text-white' : 'bg-white/5 border-transparent text-slate-700'}`}><item.icon className="w-5 h-5" /><span className="text-[8px] font-black uppercase">{item.label}</span></div>
-                                            ))}
-                                        </div>
+                        )}
+                    </div>
+                </CommandCard>
+
+                <CommandCard title="3. Did Customer complain of any Incident ?" icon={AlertTriangle}>
+                    <div className="space-y-6">
+                        <div className="flex gap-4">
+                            {['Yes', 'No'].map(o => (
+                                <button key={o} type="button" onClick={() => updateField('hasIncident', o)} className={`flex-1 py-4 rounded-xl font-black text-xs uppercase border transition-all ${formValues.hasIncident === o ? 'bg-rose-600 border-rose-500 text-white shadow-lg' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>
+                            ))}
+                        </div>
+
+                        {formValues.hasIncident === 'Yes' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase">4. If Yes, State the Ticket No logged?</label>
+                                    <input value={formValues.incidentTicket} onChange={e => updateField('incidentTicket', e.target.value)} placeholder="INCT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase">5. Was this Incident Resolved ?</label>
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={() => updateField('incidentStatus', 'YES RESOLVED')} className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase border ${formValues.incidentStatus === 'YES RESOLVED' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>YES</button>
+                                        <button type="button" onClick={() => updateField('incidentStatus', 'NO PENDING')} className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase border ${formValues.incidentStatus === 'NO PENDING' ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>NO</button>
                                     </div>
-                                    <div className="p-8 bg-blue-600/5 border border-blue-500/10 rounded-[32px] space-y-6"><h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-500/10 pb-4">Observations</h4><textarea value={formValues.comments} onChange={e => updateField('comments', e.target.value)} rows={5} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white outline-none focus:border-blue-500" placeholder="Describe site conditions..." /></div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex gap-4 mt-12"><button type="button" onClick={() => setStep(1)} className="flex-1 py-6 bg-white/5 text-slate-500 rounded-[24px] font-black uppercase text-xs tracking-widest">Back</button><button type="button" onClick={() => setStep(3)} className="flex-[2] py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-xs tracking-widest shadow-3xl">Next: Escalations</button></div>
-                    </CommandCard>
-                )}
-                {step === 3 && (
-                    <CommandCard title="Sector 3: Tactical Escalations" icon={ShieldAlert}>
-                        <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="p-8 bg-rose-600/5 border border-rose-500/10 rounded-[32px] space-y-8">
-                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Incident Detected?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => updateField('hasIncident', o)} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${formValues.hasIncident === o ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-600'}`}>{o}</button>))}</div></div>
-                                    {formValues.hasIncident === 'Yes' && (<div className="space-y-6 animate-in fade-in"><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Nature</label><select value={formValues.incidentType} onChange={e => updateField('incidentType', e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">Select Category...</option>{INCIDENT_TYPES.map(i => <option key={i} value={i}>{i}</option>)}</select></div><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Ticket Reference</label><input value={formValues.incidentTicket} onChange={e => updateField('incidentTicket', e.target.value)} placeholder="INCT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" /></div></div>)}
-                                </div>
-                                <div className="p-8 bg-blue-600/5 border border-blue-500/10 rounded-[32px] space-y-8">
-                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Special Request?</label><div className="flex gap-2">{['Yes', 'No'].map(o => (<button key={o} type="button" onClick={() => updateField('hasRequest', o)} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${formValues.hasRequest === o ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-slate-600'}`}>{o}</button>))}</div></div>
-                                    {formValues.hasRequest === 'Yes' && (<div className="space-y-6 animate-in fade-in"><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Type</label><select value={formValues.requestType} onChange={e => updateField('requestType', e.target.value)} required className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs"><option value="">Select Category...</option>{REQUEST_TYPES.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div className="space-y-2"><label className="text-[8px] font-black text-slate-600 uppercase">Ticket Reference</label><input value={formValues.requestTicket} onChange={e => updateField('requestTicket', e.target.value)} placeholder="REQT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" /></div></div>)}
                                 </div>
                             </div>
-                            <div className="pt-8">
-                                <button onClick={handleSubmit} type="button" className="w-full py-8 bg-emerald-600 text-white rounded-[32px] font-black uppercase text-sm tracking-[0.3em] shadow-3xl hover:bg-emerald-500 transition-all flex items-center justify-center gap-4 group">
-                                    <Globe className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
-                                    <span>Broadcast Deployment Intelligence</span>
-                                </button>
-                                <button type="button" onClick={() => setStep(2)} className="w-full mt-4 py-4 text-slate-600 hover:text-white text-[10px] font-black uppercase tracking-widest">Back</button>
-                            </div>
+                        )}
+                    </div>
+                </CommandCard>
+
+                <CommandCard title="6. Did Customer need any Service Request?" icon={Briefcase}>
+                    <div className="space-y-6">
+                        <div className="flex gap-4">
+                            {['Yes', 'No'].map(o => (
+                                <button key={o} type="button" onClick={() => updateField('hasRequest', o)} className={`flex-1 py-4 rounded-xl font-black text-xs uppercase border transition-all ${formValues.hasRequest === o ? 'bg-blue-600 border-blue-500 text-white shadow-lg' : 'bg-white/5 border-white/10 text-slate-500'}`}>{o}</button>
+                            ))}
                         </div>
-                    </CommandCard>
-                )}
-            </div>
+
+                        {formValues.hasRequest === 'Yes' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase">7. If Yes, State the Ticket No logged?</label>
+                                    <input value={formValues.requestTicket} onChange={e => updateField('requestTicket', e.target.value)} placeholder="REQT-..." className="w-full p-4 bg-black/40 border border-white/10 rounded-xl font-black text-white text-xs uppercase" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase">8. Was this Request Granted ?</label>
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={() => updateField('requestStatus', 'YES GRANTED')} className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase border ${formValues.requestStatus === 'YES GRANTED' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>YES</button>
+                                        <button type="button" onClick={() => updateField('requestStatus', 'NO PENDING')} className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase border ${formValues.requestStatus === 'NO PENDING' ? 'bg-rose-600 border-rose-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>NO</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </CommandCard>
+
+                <CommandCard title="9. Customer Comment/Findings/Suggestion/Special Request/Complaint?" icon={MessageSquare}>
+                    <textarea value={formValues.comments} onChange={e => updateField('comments', e.target.value)} rows={4} className="w-full p-5 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white outline-none focus:border-emerald-500 transition-all" placeholder="Enter details here..." />
+                </CommandCard>
+
+                <div className="pt-4">
+                    <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-sm tracking-[0.2em] shadow-3xl hover:bg-emerald-500 transition-all flex items-center justify-center gap-4">
+                        <Globe className="w-5 h-5" />
+                        Submit Daily Form
+                    </button>
+                </div>
+            </form>
         </div>
     );
   };
@@ -990,14 +997,22 @@ export function FRFSystem() {
         <div className="p-8"><img src={LOGO_URL} className="w-full brightness-200 grayscale h-12 object-contain" /></div>
         <nav className="flex-1 px-6 space-y-3 overflow-y-auto custom-scrollbar">
           <NavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} />
-          {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
+          
+          {user?.role === 'ADMIN' && (
             <>
               <div className="h-px bg-white/5 mx-4 my-2" />
               <NavItem icon={Building2} label="Node Matrix" active={activeTab === 'mdas'} onClick={() => {setActiveTab('mdas'); setIsSidebarOpen(false);}} />
+            </>
+          )}
+
+          {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
+            <>
+              {user?.role !== 'ADMIN' && <div className="h-px bg-white/5 mx-4 my-2" />}
               <NavItem icon={Users} label="Personnel Registry" active={activeTab === 'users'} onClick={() => {setActiveTab('users'); setIsSidebarOpen(false);}} />
               <NavItem icon={CalendarRange} label="Intelligence Hub" active={activeTab === 'reports'} onClick={() => {setActiveTab('reports'); setIsSidebarOpen(false);}} />
             </>
           )}
+
           <div className="h-px bg-white/5 mx-4 my-2" />
           {user?.role === 'FRF' && <NavItem icon={Plus} label="New Report" active={activeTab === 'submit'} onClick={() => {setActiveTab('submit'); setIsSidebarOpen(false);}} />}
           <NavItem icon={History} label="Report History" active={activeTab === 'history'} onClick={() => {setActiveTab('history'); setIsSidebarOpen(false);}} />
@@ -1039,18 +1054,18 @@ export function FRFSystem() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 no-print">
               <CommandCard title={canManage ? "Strategic Command Console" : "Respondent Command Console"} icon={Settings2}>
                   <div className="grid grid-cols-2 gap-4">
-                      {canManage ? (
+                      {user?.role === 'ADMIN' && (
+                          <button onClick={() => setActiveTab('mdas')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Building2 className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Nodes Matrix</span></button>
+                      )}
+                      {(user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && (
                           <>
-                              <button onClick={() => setActiveTab('mdas')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Building2 className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Nodes Matrix</span></button>
                               <button onClick={() => setActiveTab('users')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><Users className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Personnel Registry</span></button>
                               <button onClick={() => setActiveTab('reports')} className="p-6 bg-amber-600/10 border border-amber-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-amber-600 hover:text-white transition-all group shadow-sm"><PieChart className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Intelligence Hub</span></button>
-                              <button onClick={() => setActiveTab('history')} className="p-6 bg-rose-600/10 border border-rose-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-rose-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Report History</span></button>
                           </>
-                      ) : (
-                          <>
-                              <button onClick={() => setActiveTab('submit')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Plus className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">New Report</span></button>
-                              <button onClick={() => setActiveTab('history')} className="p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Report History</span></button>
-                          </>
+                      )}
+                      <button onClick={() => setActiveTab('history')} className="p-6 bg-rose-600/10 border border-rose-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-rose-600 hover:text-white transition-all group shadow-sm"><History className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">Report History</span></button>
+                      {user?.role === 'FRF' && (
+                          <button onClick={() => setActiveTab('submit')} className="p-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all group shadow-sm"><Plus className="w-8 h-8" /><span className="text-[10px] font-black uppercase text-center">New Report</span></button>
                       )}
                   </div>
               </CommandCard>
@@ -1085,16 +1100,75 @@ export function FRFSystem() {
   
   if (appState === 'LOGIN') return (
     <div className="min-h-screen bg-[#010a06] flex items-center justify-center p-8 relative overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]" />
+      </div>
+      
       <div className="max-w-md w-full z-10 space-y-6 animate-in slide-in-from-bottom-12 duration-700">
-        <div className="bg-[#011a0e] rounded-[60px] p-12 border border-white/10 text-center shadow-3xl">
-          <div className="w-16 h-16 bg-emerald-600/10 border border-emerald-500/20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner"><Fingerprint className="w-8 h-8 text-emerald-500" /></div>
-          <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Enter your login details</h2>
+        <div className="bg-[#011a0e] rounded-[60px] p-12 border border-white/10 text-center shadow-3xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50" />
+          
+          <div className="w-16 h-16 bg-emerald-600/10 border border-emerald-500/20 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <Fingerprint className="w-8 h-8 text-emerald-500" />
+          </div>
+          
+          <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Secure Access Terminal</h2>
+          
           <form onSubmit={e => { e.preventDefault(); handleLogin(loginEmail, loginPassword); }} className="space-y-4">
-            <input value={loginEmail} onChange={e => setLoginEmail(e.target.value)} name="email" type="email" placeholder="Enter your GBB email" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
-            <input value={loginPassword} onChange={e => setLoginPassword(e.target.value)} name="password" type="password" placeholder="Password" className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" required />
-            <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98]">Login</button>
+            <div className="space-y-1 text-left">
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-4">Personnel Email</label>
+              <input 
+                value={loginEmail} 
+                onChange={e => setLoginEmail(e.target.value)} 
+                name="email" 
+                type="email" 
+                placeholder="admin@gbb.com.ng" 
+                className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" 
+                required 
+              />
+            </div>
+            
+            <div className="space-y-1 text-left">
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-4">Access Key</label>
+              <input 
+                value={loginPassword} 
+                onChange={e => setLoginPassword(e.target.value)} 
+                name="password" 
+                type="password" 
+                placeholder="••••••••" 
+                className="w-full p-4 bg-white/5 border border-white/10 rounded-xl font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm" 
+                required 
+              />
+            </div>
+            
+            <button className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white uppercase tracking-widest text-[10px] shadow-3xl hover:bg-emerald-500 transition-all active:scale-[0.98] mt-4">
+              Initialize Session
+            </button>
           </form>
+
+          <div className="mt-12 pt-8 border-t border-white/5">
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4">Demo Credentials</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button 
+                onClick={() => { setLoginEmail('admin@gbb.com.ng'); setLoginPassword('admin123'); }}
+                className="p-3 bg-white/5 rounded-xl text-[8px] font-black uppercase text-slate-400 hover:bg-white/10 transition-all border border-white/5"
+              >
+                Admin Access
+              </button>
+              <button 
+                onClick={() => { setLoginEmail('asmau.alkali@galaxybackbone.com.ng'); setLoginPassword('frf123'); }}
+                className="p-3 bg-white/5 rounded-xl text-[8px] font-black uppercase text-slate-400 hover:bg-white/10 transition-all border border-white/5"
+              >
+                FRF Access
+              </button>
+            </div>
+          </div>
         </div>
+        
+        <p className="text-center text-[8px] font-black text-slate-600 uppercase tracking-[0.4em]">
+          Galaxy Backbone • Strategic Intelligence Matrix
+        </p>
       </div>
     </div>
   );
@@ -1109,10 +1183,10 @@ export function FRFSystem() {
         </header>
         <div className="pb-24">
           {activeTab === 'dashboard' && <MissionControlDashboard />}
-          {activeTab === 'mdas' && <MDARegistry />}
-          {activeTab === 'users' && <PersonnelRegistry />}
-          {activeTab === 'reports' && <ReportsView />}
-          {activeTab === 'submit' && <SubmitReportForm />}
+          {activeTab === 'mdas' && user?.role === 'ADMIN' && <MDARegistry />}
+          {activeTab === 'users' && (user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && <PersonnelRegistry />}
+          {activeTab === 'reports' && (user?.role === 'ADMIN' || user?.role === 'HEAD_OF_CSS') && <ReportsView />}
+          {activeTab === 'submit' && user?.role === 'FRF' && <SubmitReportForm />}
           {activeTab === 'history' && <HistoryView />}
         </div>
       </main>
