@@ -214,7 +214,8 @@ const INITIAL_MDAS: MDA[] = [
 
 const INITIAL_USERS: User[] = [
   { id: 'u1', name: 'Strategic Administrator', email: 'admin@gbb.com.ng', password: 'admin123', role: 'ADMIN', assignedMdaIds: [] },
-  { id: 'u4', name: 'Head of CSS', email: 'css@gbb.com.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] }
+  { id: 'u4', name: 'Head of CSS', email: 'css@gbb.com.ng', password: 'css123', role: 'HEAD_OF_CSS', assignedMdaIds: [] },
+  { id: 'u5', name: 'Asmau Alkali', email: 'asmau.alkali@galaxybackbone.com.ng', password: 'frf123', role: 'FRF', assignedMdaIds: [] }
 ];
 
 // --- Utils ---
@@ -317,8 +318,8 @@ export function FRFSystem() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [mdas, setMdas] = useState<MDA[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [mdas, setMdas] = useState<MDA[]>(INITIAL_MDAS);
+  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [visitations, setVisitations] = useState<Visitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -343,17 +344,45 @@ export function FRFSystem() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [mdasRes, usersRes, visitsRes] = await Promise.all([
-          fetch('/api/mdas'),
-          fetch('/api/users'),
-          fetch('/api/visitations')
-        ]);
-        
-        if (mdasRes.ok) setMdas(await mdasRes.json());
-        if (usersRes.ok) setUsers(await usersRes.json());
-        if (visitsRes.ok) setVisitations(await visitsRes.json());
+        let fetchedMdas = null;
+        let fetchedUsers = null;
+        let fetchedVisits = null;
+
+        try {
+          const res = await fetch('/api/mdas');
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) fetchedMdas = data;
+          }
+        } catch (e) {
+          console.warn("Could not load database MDAs. Working in offline fallback mode.", e);
+        }
+
+        try {
+          const res = await fetch('/api/users');
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) fetchedUsers = data;
+          }
+        } catch (e) {
+          console.warn("Could not load database Users. Working in offline fallback mode.", e);
+        }
+
+        try {
+          const res = await fetch('/api/visitations');
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) fetchedVisits = data;
+          }
+        } catch (e) {
+          console.warn("Could not load database Visitations. Working in offline fallback mode.", e);
+        }
+
+        if (fetchedMdas) setMdas(fetchedMdas);
+        if (fetchedUsers) setUsers(fetchedUsers);
+        if (fetchedVisits) setVisitations(fetchedVisits);
       } catch (error) {
-        console.error("Failed to fetch data:", error);
+        console.error("Failed to fetch central database data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -363,27 +392,39 @@ export function FRFSystem() {
 
   // Sync state changes to server
   const syncMda = async (mda: MDA) => {
-    await fetch('/api/mdas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mda)
-    });
+    try {
+      await fetch('/api/mdas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mda)
+      });
+    } catch (e) {
+      console.warn("Failed to sync MDA online. Stored locally.", e);
+    }
   };
 
   const syncUser = async (u: User) => {
-    await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(u)
-    });
+    try {
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(u)
+      });
+    } catch (e) {
+      console.warn("Failed to sync user online. Stored locally.", e);
+    }
   };
 
   const syncVisitation = async (v: Visitation) => {
-    await fetch('/api/visitations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(v)
-    });
+    try {
+      await fetch('/api/visitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(v)
+      });
+    } catch (e) {
+      console.warn("Failed to sync visitation online. Stored locally.", e);
+    }
   };
 
 
@@ -478,7 +519,11 @@ export function FRFSystem() {
     if (confirm("System Audit: Permanently purge this Node? All associated tactical mappings will be disconnected.")) {
       setMdas(mdas.filter(m => m.id !== id));
       setUsers(users.map(u => ({ ...u, assignedMdaIds: u.assignedMdaIds.filter(mId => mId !== id) })));
-      await fetch(`/api/mdas/${id}`, { method: 'DELETE' });
+      try {
+        await fetch(`/api/mdas/${id}`, { method: 'DELETE' });
+      } catch (e) {
+        console.warn("Could not delete MDA on the backend server:", e);
+      }
     }
   };
 
@@ -505,7 +550,11 @@ export function FRFSystem() {
     if (id === user?.id) { alert("Security Protocol: You cannot terminate your own active session."); return; }
     if (confirm("Tactical Revocation: Permanently revoke all access for this personnel?")) {
       setUsers(users.filter(u => u.id !== id));
-      await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      try {
+        await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      } catch (e) {
+        console.warn("Could not delete User on the backend server:", e);
+      }
     }
   };
 
